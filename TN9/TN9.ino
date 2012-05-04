@@ -33,7 +33,7 @@ void setup(){
   Serial.println("Type to Start...");		                // Wait for input to start
   while(!Serial.available());
   Serial.println("Starting...");
-  Serial.println("IR (C), Ambient (C), Time Since Start (ms)");
+  Serial.println("Millis,IR,Ambient");
 
   attachInterrupt(1,tn9Data,FALLING);  		                // Attach Interrupt
   digitalWrite(actionPin,LOW);			  	        // Make sensor start sending data (LOW == send, HIGH == no send)
@@ -66,7 +66,7 @@ void loop(){
     Serial.println(ambtemp);
     irFlag = false;					// Reset flags
     ambFlag = false;
-    delay(2000);					// Simulate other sensors or code
+    //delay(2000);					// Simulate other sensors or code
     digitalWrite(actionPin,LOW);			// Make sensor start sending data  
   }											
 

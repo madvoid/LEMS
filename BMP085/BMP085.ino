@@ -6,7 +6,7 @@
 Adafruit_BMP085 bmp;                    // Create BMP Class
   
 void setup() {
-  Serial.begin(9600);                    // Begin serial communication
+  Serial.begin(1200);                    // Begin serial communication
   Serial.println("Type to Start...");    // Wait for serial communication
   while(!Serial.available());
   Serial.println("Millis, Temperature, Pressure, Altitude");

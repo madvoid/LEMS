@@ -7,6 +7,10 @@
  Remember to run two jumper wires from analog pins 4 and 5 to digital pins 20 and 21 respectively.
  On the data logging shield, jumper wires will be required from digital pins 8 and 9 to the 
  green LED and red LED respectively.
+ 
+ The Final_Test code is a slightly modified version of the Final code.  There is only one Decagon
+ 5TM dude to testing reasons and the ADC has been upgraded to an ADS7841 ADC.  This code will be used
+ for the first LEMS test at the beginning of May
  */
 
 #include <SD.h>						// SD card library
@@ -22,7 +26,7 @@ Adafruit_BMP085 bmp;					// Initialize class called bmp
 
 // Pin Variables...
 const int chipSelect = 10;			        // Pin needed for data logger
-const int ftm_powerL = 24;          	                // Lower 5TM sensor power pin (White Wire)
+//const int ftm_powerL = 24;          	                // Lower 5TM sensor power pin (White Wire)
                                                         // Lower 5TM corresponds to Serial2
 const int ftm_powerU = 26;          	                // Upper 5TM sensor power pin (White Wire)
                                                         // Upper 5TM corresponds to Serial3
@@ -31,8 +35,6 @@ const int tn9_clk = 3;    				// TN9 clock pin
 const int tn9_action = 4;          			// TN9 action pin
 const int green_led = 9;		        	// Datalogger green LED
 const int red_led = 8;				        // Datalogger red LED
-const int hih_ss = 49;					// HIH4030 ADC Slave Select
-const int li_ss = 48;                                   // Licor ADC Slave Select
 OneWire oneWire(39);					// Initialize OneWire Device on pin 23
 // MISO = 50;                                           // SPI Pins as a reminder
 // MOSI = 51;
@@ -42,9 +44,9 @@ OneWire oneWire(39);					// Initialize OneWire Device on pin 23
 // SCL = 21;
 
 // 5TM Variables...
-double ftm_moisL = 0.0;  				// Lower 5TM moisture
+//double ftm_moisL = 0.0;  				// Lower 5TM moisture
 double ftm_moisU = 0.0;     				// Upper 5TM moisture
-double ftm_tempL = 0.0;     				// Lower 5TM temp
+//double ftm_tempL = 0.0;     				// Lower 5TM temp
 double ftm_tempU = 0.0;     				// Upper 5TM temp
 int ftm_i = 0;					        // 5TM index counter
 
@@ -78,6 +80,12 @@ float hih_tchum = 0.0;                                          // HIH4030 Tempe
 unsigned int li_val = 0;				        // Word to hold 12 bit sunlight values
 // !! CHANGES FOR EACH DIFFERENT LI200. SEE CERTIFICATE!!
 
+// ADS7841 Control Codes
+const byte li_code =  0b10010100;      // ADC channel 0 - Used by Li200
+const byte hih_code = 0b11010100;     // ADC channel 1 - Used by HIH4030
+const byte ch2_code = 0b10100100;     // ADC channel 2 - Currently unused
+const byte ch3_code = 0b11100100;     // ADC channel 3 - Currently unused
+
 // Miscellaneous Variables
 unsigned long time_old = 0;
 unsigned long time_dif = 0;
@@ -93,22 +101,20 @@ void setup(){
   Serial3.begin(1200);    		// Upper 5TM
 
   pinMode(chipSelect, OUTPUT);		// Pin initialization...
-  pinMode(ftm_powerL, OUTPUT);
+//  pinMode(ftm_powerL, OUTPUT);
   pinMode(ftm_powerU, OUTPUT);
   pinMode(tn9_clk, INPUT);					
   pinMode(tn9_data, INPUT);
   pinMode(tn9_action, OUTPUT);
   pinMode(green_led, OUTPUT);
   pinMode(red_led, OUTPUT);
-  pinMode(hih_ss, OUTPUT);
   digitalWrite(tn9_clk, HIGH);
   digitalWrite(tn9_data, HIGH);
   digitalWrite(tn9_action, HIGH);
-  digitalWrite(ftm_powerL, LOW);
+//  digitalWrite(ftm_powerL, LOW);
   digitalWrite(ftm_powerU, LOW);
   digitalWrite(green_led, LOW);
   digitalWrite(red_led, LOW);
-  digitalWrite(hih_ss, HIGH);
 
   Serial.println("Type any character to start");		// Wait for serial input to start
   while (!Serial.available());
@@ -147,8 +153,9 @@ void setup(){
 //  SPI.setBitOrder(MSBFIRST);
 //  SPI.setDataMode(SPI_MODE0);
   SPI.setClockDivider(SPI_CLOCK_DIV16);
-  logfile.println("Millis,Month,Day,Year,Hour,Minute,Second,Dallas Amb,Rel Hum,Temp Corrected Rel Hum,Pressure,BMP Amb,IR,TN9 Amb,Soil Lower Temp,Soil Lower Mois,Soil Upper Temp,Soil Upper Mois,Sunlight");
-
+    digitalWrite(SS,HIGH);
+//  logfile.println("Millis,Month,Day,Year,Hour,Minute,Second,Dallas Amb,Rel Hum,Temp Corrected Rel Hum,Pressure,BMP Amb,IR,TN9 Amb,Soil Lower Temp,Soil Lower Mois,Soil Upper Temp,Soil Upper Mois,Sunlight");
+  logfile.println("Millis,Month,Day,Year,Hour,Minute,Second,Dallas Amb,Rel Hum,Temp Corrected Rel Hum,Pressure,BMP Amb,Surface Temp,TN9 Amb,Soil Upper Temp,Soil Upper Mois,Sunlight");
   digitalWrite(green_led, HIGH);				// About to enter main loop confirmation
   delay(1000);
   digitalWrite(green_led, LOW);
@@ -184,14 +191,14 @@ void loop(){
   if(tn9_irflag && tn9_ambflag){			        // If successful IR and Ambient reading...
     digitalWrite(tn9_action,HIGH);                  		// Make TN9 stop sending data. Ensure no Interrupts        	
 
-    ftm_i = 0;
-    digitalWrite(ftm_powerL,HIGH);                              // Excite lower 5TM...
-    delay(200);
-    char ftm_inputL[Serial2.available()];                       // Read lower 5TM Values
-    while (Serial2.available()>0){ 
-      ftm_inputL[ftm_i] = Serial2.read();
-      ftm_i++;
-    }
+//    ftm_i = 0;
+//    digitalWrite(ftm_powerL,HIGH);                              // Excite lower 5TM...
+//    delay(200);
+//    char ftm_inputL[Serial2.available()];                       // Read lower 5TM Values
+//    while (Serial2.available()>0){ 
+//      ftm_inputL[ftm_i] = Serial2.read();
+//      ftm_i++;
+//    }
 
     ftm_i = 0;
     digitalWrite(ftm_powerU,HIGH);                              // Excite upper 5TM...
@@ -202,9 +209,9 @@ void loop(){
       ftm_i++;
     }
 
-    digitalWrite(ftm_powerL,LOW);				// Turn 5TM's off...
+//    digitalWrite(ftm_powerL,LOW);				// Turn 5TM's off...
     digitalWrite(ftm_powerU,LOW);
-    ftmParse(ftm_inputL,ftm_moisL,ftm_tempL);			// Parse 5TM's message...
+//    ftmParse(ftm_inputL,ftm_moisL,ftm_tempL);			// Parse 5TM's message...
     ftmParse(ftm_inputU,ftm_moisU,ftm_tempU);
 
     bmp_temp = bmp.readTemperature();			         // Measure BMP085 Temperature
@@ -213,10 +220,10 @@ void loop(){
     dstemp.requestTemperatures();			        // Send command to get dallas temp sensor values
     ds_temp = dstemp.getTempC(dsaddress);	                // Read Temperature
 
-    li_val = ads7822(li_ss);					
+    li_val = ads7841(li_code);					
     // PLACE BIT CONVERTING EQUATION HERE
 
-    hih_raw = ads7822(hih_ss);
+    hih_raw = ads7841(hih_code);
     hih_hum = (float)hih_raw/25.3952 - 25.8065;
     hih_tchum = hih_hum/(1.0546 - 0.00216*ds_temp);
 
@@ -250,10 +257,10 @@ void loop(){
     logfile.print(",");
     logfile.print(tn9_amb);
     logfile.print(",");
-    logfile.print(ftm_tempL,2);
-    logfile.print(",");
-    logfile.print(ftm_moisL,5);
-    logfile.print(",");
+//    logfile.print(ftm_tempL,2);
+//    logfile.print(",");
+//    logfile.print(ftm_moisL,5);
+//    logfile.print(",");
     logfile.print(ftm_tempU,2);
     logfile.print(",");
     logfile.print(ftm_moisU,5);
@@ -285,7 +292,8 @@ void loop(){
     delay(8000);						// Wait for next reading
     tn9_irflag = false;						// Reset TN9 flags...
     tn9_ambflag = false;
-    ftm_moisL = ftm_moisU = ftm_tempL = ftm_tempU = 0.0;	// Reset 5TM values
+//    ftm_moisL = ftm_moisU = ftm_tempL = ftm_tempU = 0.0;	// Reset 5TM values
+    ftm_moisU = ftm_tempU = 0.0;
     digitalWrite(tn9_action,LOW);				// Make tn9 start sending data  
   }											
 
@@ -379,15 +387,18 @@ float tn9Temp(volatile byte tn9Values[]){		        // TN9 temperature calculatio
 } //tn9Temp
 
 
-unsigned int ads7822(const int pinnum){           // Function to interact ads7822 ADC -- Pass Slave Select pin in
-  int bitnum = 0;                   // Initialize return
-  digitalWrite(pinnum, LOW);            // Start communication
-  byte msb = SPI.transfer(0);     // Communicate
+unsigned int ads7841(const byte control){    // Function to read ADS7841
+  int bitnum;                                // Return value
+  digitalWrite(SS,LOW);                      // Activate ADS7841
+  SPI.transfer(control);                     // Transfer control byte
+  byte msb = SPI.transfer(0);                // Read MSB & LSB
   byte lsb = SPI.transfer(0);
-  digitalWrite(pinnum, HIGH);           // End communication
-  bitnum = word (msb & 0x1F, lsb) >> 1;
-  return(bitnum);                   // Return number of bits
-}//ads7822
+  digitalWrite(SS,HIGH);                     // Deactivate ADS7841
+  msb = msb & 0x7F;                          // Isolate readings and form final reading
+  lsb = lsb >> 3;
+  bitnum = (word(msb) << 5) | lsb;
+  return bitnum;                             // Return
+}
 
 
 

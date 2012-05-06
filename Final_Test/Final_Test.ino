@@ -27,12 +27,12 @@ Adafruit_BMP085 bmp;					// Initialize class called bmp
 // Pin Variables...
 const int chipSelect = 10;			        // Pin needed for data logger
 //const int ftm_powerL = 24;          	                // Lower 5TM sensor power pin (White Wire)
-                                                        // Lower 5TM corresponds to Serial2
+                                                        // Lower 5TM corresponds to Serial2 (Red Wire)
 const int ftm_powerU = 26;          	                // Upper 5TM sensor power pin (White Wire)
-                                                        // Upper 5TM corresponds to Serial3
-const int tn9_data = 2;				        // TN9 data pin
-const int tn9_clk = 3;    				// TN9 clock pin
-const int tn9_action = 4;          			// TN9 action pin
+                                                        // Upper 5TM corresponds to Serial3 (Red Wire)
+const int tn9_data = 2;				        // TN9 data pin (Green Wire)
+const int tn9_clk = 3;    				// TN9 clock pin (White Wire)
+const int tn9_action = 4;          			// TN9 action pin (Edgemost Black Wire)
 const int green_led = 9;		        	// Datalogger green LED
 const int red_led = 8;				        // Datalogger red LED
 OneWire oneWire(39);					// Initialize OneWire Device on pin 23

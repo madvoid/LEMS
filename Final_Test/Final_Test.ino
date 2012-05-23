@@ -6,7 +6,7 @@
  All sensors can be run from 5 V Arduino pin.  This code is only compatible with the Arduino Mega.
  Remember to run two jumper wires from analog pins 4 and 5 to digital pins 20 and 21 respectively.
  On the data logging shield, jumper wires will be required from digital pins 8 and 9 to the 
- green LED and red LED respectively.
+ red LED and green LED respectively.
  
  The Final_Test code is a slightly modified version of the Final code.  There is only one Decagon
  5TM dude to testing reasons and the ADC has been upgraded to an ADS7841 ADC.  This code will be used
@@ -35,7 +35,7 @@ const int tn9_clk = 3;    				// TN9 clock pin (White Wire)
 const int tn9_action = 4;          			// TN9 action pin (Edgemost Black Wire)
 const int green_led = 9;		        	// Datalogger green LED
 const int red_led = 8;				        // Datalogger red LED
-OneWire oneWire(39);					// Initialize OneWire Device on pin 23
+OneWire oneWire(38);					// Initialize OneWire Device on pin 23
 // MISO = 50;                                           // SPI Pins as a reminder
 // MOSI = 51;
 // SCK = 52;
@@ -99,7 +99,7 @@ void setup(){
   Serial.begin(1200);
   Serial2.begin(1200);		        // Lower 5TM
   Serial3.begin(1200);    		// Upper 5TM
-
+  
   pinMode(chipSelect, OUTPUT);		// Pin initialization...
 //  pinMode(ftm_powerL, OUTPUT);
   pinMode(ftm_powerU, OUTPUT);
@@ -117,8 +117,8 @@ void setup(){
   digitalWrite(red_led, LOW);
 
   Serial.println("Type any character to start");		// Wait for serial input to start
-  while (!Serial.available());
-
+  //while (!Serial.available());
+  delay(2000);
   Serial.print("Initializing SD card...");		        // Initialize Data Logger
   if (!SD.begin(chipSelect)) {  				// Card check...
     digitalWrite(red_led, HIGH);  		

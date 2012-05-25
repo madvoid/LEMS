@@ -145,6 +145,7 @@ void setup(){
     digitalWrite(red_led, HIGH);
     error("RTC failed"); 
   }
+  RTC.adjust(DateTime(__DATE__, __TIME__));
   bmp.begin();								// Begin BMP085
   dstemp.begin();							// Begin dallas temp sensor
   dstemp.getAddress(dsaddress, 0);			// Get dallas temp sensor address

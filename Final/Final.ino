@@ -6,7 +6,7 @@
  All sensors can be run from 5 V Arduino pin.  This code is only compatible with the Arduino Mega.
  Remember to run two jumper wires from analog pins 4 and 5 to digital pins 20 and 21 respectively.
  On the data logging shield, jumper wires will be required from digital pins 8 and 9 to the 
- green LED and red LED respectively.
+ red LED and green LED respectively.
  */
 
 #include <SD.h>						// SD card library
@@ -25,15 +25,13 @@ const int chipSelect = 10;			        // Pin needed for data logger
 const int ftm_powerL = 24;          	                // Lower 5TM sensor power pin (White Wire)
                                                         // Lower 5TM corresponds to Serial2
 const int ftm_powerU = 26;          	                // Upper 5TM sensor power pin (White Wire)
-                                                        // Upper 5TM corresponds to Serial3
-const int tn9_data = 2;				        // TN9 data pin
-const int tn9_clk = 3;    				// TN9 clock pin
-const int tn9_action = 4;          			// TN9 action pin
+                                                        // Upper 5TM corresponds to Serial3 (Red Wire)
+const int tn9_data = 2;				        // TN9 data pin (Green Wire)
+const int tn9_clk = 3;    				// TN9 clock pin (White Wire)
+const int tn9_action = 4;          			// TN9 action pin (Edgemost Black Wire)
 const int green_led = 9;		        	// Datalogger green LED
 const int red_led = 8;				        // Datalogger red LED
-const int hih_ss = 49;					// HIH4030 ADC Slave Select
-const int li_ss = 48;                                   // Licor ADC Slave Select
-OneWire oneWire(39);					// Initialize OneWire Device on pin 23
+OneWire oneWire(38);					// Initialize OneWire Device on pin 23
 // MISO = 50;                                           // SPI Pins as a reminder
 // MOSI = 51;
 // SCK = 52;
@@ -78,6 +76,12 @@ float hih_tchum = 0.0;                                          // HIH4030 Tempe
 unsigned int li_val = 0;				        // Word to hold 12 bit sunlight values
 // !! CHANGES FOR EACH DIFFERENT LI200. SEE CERTIFICATE!!
 
+// ADS7841 Control Codes
+const byte li_code =  0b10010100;      // ADC channel 0 - Used by Li200
+const byte hih_code = 0b11010100;     // ADC channel 1 - Used by HIH4030
+const byte ch2_code = 0b10100100;     // ADC channel 2 - Currently unused
+const byte ch3_code = 0b11100100;     // ADC channel 3 - Currently unused
+
 // Miscellaneous Variables
 unsigned long time_old = 0;
 unsigned long time_dif = 0;
@@ -100,7 +104,6 @@ void setup(){
   pinMode(tn9_action, OUTPUT);
   pinMode(green_led, OUTPUT);
   pinMode(red_led, OUTPUT);
-  pinMode(hih_ss, OUTPUT);
   digitalWrite(tn9_clk, HIGH);
   digitalWrite(tn9_data, HIGH);
   digitalWrite(tn9_action, HIGH);
@@ -108,11 +111,10 @@ void setup(){
   digitalWrite(ftm_powerU, LOW);
   digitalWrite(green_led, LOW);
   digitalWrite(red_led, LOW);
-  digitalWrite(hih_ss, HIGH);
 
   Serial.println("Type any character to start");		// Wait for serial input to start
-  while (!Serial.available());
-
+  //while (!Serial.available());
+  delay(2000);
   Serial.print("Initializing SD card...");		        // Initialize Data Logger
   if (!SD.begin(chipSelect)) {  				// Card check...
     digitalWrite(red_led, HIGH);  		
@@ -147,6 +149,7 @@ void setup(){
 //  SPI.setBitOrder(MSBFIRST);
 //  SPI.setDataMode(SPI_MODE0);
   SPI.setClockDivider(SPI_CLOCK_DIV16);
+  digitalWrite(SS,HIGH);
   logfile.println("Millis,Month,Day,Year,Hour,Minute,Second,Dallas Amb,Rel Hum,Temp Corrected Rel Hum,Pressure,BMP Amb,IR,TN9 Amb,Soil Lower Temp,Soil Lower Mois,Soil Upper Temp,Soil Upper Mois,Sunlight");
 
   digitalWrite(green_led, HIGH);				// About to enter main loop confirmation
@@ -213,10 +216,10 @@ void loop(){
     dstemp.requestTemperatures();			        // Send command to get dallas temp sensor values
     ds_temp = dstemp.getTempC(dsaddress);	                // Read Temperature
 
-    li_val = ads7822(li_ss);					
+    li_val = ads7841(li_code);					
     // PLACE BIT CONVERTING EQUATION HERE
 
-    hih_raw = ads7822(hih_ss);
+    hih_raw = ads7841(hih_code);
     hih_hum = (float)hih_raw/25.3952 - 25.8065;
     hih_tchum = hih_hum/(1.0546 - 0.00216*ds_temp);
 
@@ -379,15 +382,18 @@ float tn9Temp(volatile byte tn9Values[]){		        // TN9 temperature calculatio
 } //tn9Temp
 
 
-unsigned int ads7822(const int pinnum){           // Function to interact ads7822 ADC -- Pass Slave Select pin in
-  int bitnum = 0;                   // Initialize return
-  digitalWrite(pinnum, LOW);            // Start communication
-  byte msb = SPI.transfer(0);     // Communicate
+unsigned int ads7841(const byte control){    // Function to read ADS7841
+  int bitnum;                                // Return value
+  digitalWrite(SS,LOW);                      // Activate ADS7841
+  SPI.transfer(control);                     // Transfer control byte
+  byte msb = SPI.transfer(0);                // Read MSB & LSB
   byte lsb = SPI.transfer(0);
-  digitalWrite(pinnum, HIGH);           // End communication
-  bitnum = word (msb & 0x1F, lsb) >> 1;
-  return(bitnum);                   // Return number of bits
-}//ads7822
+  digitalWrite(SS,HIGH);                     // Deactivate ADS7841
+  msb = msb & 0x7F;                          // Isolate readings and form final reading
+  lsb = lsb >> 3;
+  bitnum = (word(msb) << 5) | lsb;
+  return bitnum;                             // Return
+}
 
 
 

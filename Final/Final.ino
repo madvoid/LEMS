@@ -9,82 +9,103 @@
  red LED and green LED respectively.
  */
 
-#include <SD.h>						// SD card library
-#include <Wire.h>					// I2C library
-#include "RTClib.h"					// Real Time Clock (RTC) library
-#include <Adafruit_BMP085.h>				// BMP085 Library
-#include <OneWire.h>				// OneWire Library 
-#include <DallasTemperature.h>		// Dallas Temperature Library; Requires <OneWire.h> to run
-#include <SPI.h>
-RTC_DS1307 RTC;						// Initialize RTC
-File logfile;						// Initialize class called logfile
-Adafruit_BMP085 bmp;					// Initialize class called bmp
+// !!! POSSIBLE BUGS!!! : ftm_i can possibly be defined twice.  Problematic?
 
-// Pin Variables...
-const int chipSelect = 10;			        // Pin needed for data logger
-const int ftm_powerL = 24;          	                // Lower 5TM sensor power pin (White Wire)
-                                                        // Lower 5TM corresponds to Serial2
-const int ftm_powerU = 26;          	                // Upper 5TM sensor power pin (White Wire)
-                                                        // Upper 5TM corresponds to Serial3 (Red Wire)
-const int tn9_data = 2;				        // TN9 data pin (Green Wire)
-const int tn9_clk = 3;    				// TN9 clock pin (White Wire)
-const int tn9_action = 4;          			// TN9 action pin (Edgemost Black Wire)
-const int green_led = 9;		        	// Datalogger green LED
-const int red_led = 8;				        // Datalogger red LED
-OneWire oneWire(38);					// Initialize OneWire Device on pin 23
-// MISO = 50;                                           // SPI Pins as a reminder
+// MISO = 50;                               // SPI Pins as a reminder
 // MOSI = 51;
 // SCK = 52;
 // SS = 53;
-// SDA = 20;                                            // I2C Pins as a reminder
+// SDA = 20;                                // I2C Pins as a reminder
 // SCL = 21;
 
-// 5TM Variables...
-double ftm_moisL = 0.0;  				// Lower 5TM moisture
-double ftm_moisU = 0.0;     				// Upper 5TM moisture
-double ftm_tempL = 0.0;     				// Lower 5TM temp
-double ftm_tempU = 0.0;     				// Upper 5TM temp
-int ftm_i = 0;					        // 5TM index counter
+#define PRESSURE 1
+#define TEMPERATURE 1
+#define UPPERSOIL 1                         // Serial3
+#define LOWERSOIL 0                         // Serial2
+#define INFRARED 1
+#define HUMIDITY 1
+#define SUNLIGHT 1
 
-// TN9 Variables...
-const int tn9_len = 5;					// Length of tn9 values array
-volatile byte tn9_pos = 0;				// TN9 array position count
-volatile byte tn9_rawval[5] = {
-  0,0,0,0,0};              // TN9 array
-byte tn9_n = 0;						// TN9 interrupt bit count
-byte tn9_cbit = 0;					// TN9 current bit read
-boolean tn9_irflag = false;				// TN9 flag to indicate IR reading made
-boolean tn9_ambflag = false;				// TN9 flag to indicate ambient temp reading made
-float tn9_ir = 0.0;					// TN9 IR temperature
-float tn9_amb = 0.0;					// TN9 ambient temperature
+#include <SD.h>						// SD card library
+#include <Wire.h>					// I2C library
+#include "RTClib.h"					// Real Time Clock (RTC) library
+#include <SPI.h>
+RTC_DS1307 RTC;						// Initialize RTC
+File logfile;						// Initialize class called logfile
+const int chipSelect = 10;			// Pin needed for data logger
+const int green_led = 9;		    // Datalogger green LED
+const int red_led = 8;				// Datalogger red LED
 
-// BMP085 Variables...
-float bmp_temp = 0.0;				// BMP085 Temperature
-float bmp_pres = 0.0;				// BMP085 Pressure
-// If properly setup, there is a pressure command as well
-// Dallas Temp Variables...
-DallasTemperature dstemp(&oneWire);	// Initializes OneWire Device and Dallas Temperature Sensor
-DeviceAddress dsaddress;			// Sets Address;
-float ds_temp = 0.0;				// Dallas sensor temperature
-
-// HIH4030 Variables...
-unsigned int hih_raw = 0;					// HIH4030 Bit Value
-float hih_hum = 0.0;                                              // HIH4030 Humidity
-float hih_tchum = 0.0;                                          // HIH4030 Temperature Corrected Humidity
-
-// Li200 Variables
-unsigned int li_val = 0;				        // Word to hold 12 bit sunlight values
-// !! CHANGES FOR EACH DIFFERENT LI200. SEE CERTIFICATE!!
+unsigned long time_old = 0;
+unsigned long time_dif = 0;
 
 // ADS7841 Control Codes
-const byte li_code =  0b10010100;      // ADC channel 0 - Used by Li200
+const byte li_code =  0b10010100;     // ADC channel 0 - Used by Li200
 const byte hih_code = 0b11010100;     // ADC channel 1 - Used by HIH4030
 const byte ch2_code = 0b10100100;     // ADC channel 2 - Currently unused
 const byte ch3_code = 0b11100100;     // ADC channel 3 - Currently unused
 
-// Miscellaneous Variables
-unsigned long time_old = 0;
-unsigned long time_dif = 0;
+#if PRESSURE
+#include <Adafruit_BMP085.h>		// BMP085 Library
+Adafruit_BMP085 bmp;					// Initialize class called bmp
+float bmp_temp = 0.0;				// BMP085 Temperature
+float bmp_pres = 0.0;				// BMP085 Pressure
+#endif
+
+#if TEMPERATURE
+#include <OneWire.h>				// OneWire Library 
+#include <DallasTemperature.h>		// Dallas Temperature Library; Requires <OneWire.h> to run
+OneWire oneWire(38);						// Initialize OneWire Device on pin 23
+
+DallasTemperature dstemp(&oneWire);	// Initializes OneWire Device and Dallas Temperature Sensor
+DeviceAddress dsaddress;			// Sets Address;
+float ds_temp = 0.0;				// Dallas sensor temperature
+#endif
+
+int ftm_i = 0;					            // 5TM index counter    	                                    	
+
+#if UPPERSOIL
+const int ftm_powerU = 26;          	    // Upper 5TM sensor power pin (White Wire)
+// Upper 5TM corresponds to Serial3 (Red Wire)
+double ftm_moisU = 0.0;     				// Upper 5TM moisture
+double ftm_tempU = 0.0;     				// Upper 5TM temp
+#endif
+
+#if LOWERSOIL
+const int ftm_powerL = 24;          	    // Lower 5TM sensor power pin (White Wire)
+// Lower 5TM corresponds to Serial2
+double ftm_moisL = 0.0;  				    // Lower 5TM moisture
+double ftm_tempL = 0.0;     				// Lower 5TM temp
+#endif
+
+#if INFRARED
+const int tn9_data = 2;						// TN9 data pin (Green Wire)
+const int tn9_clk = 3;						// TN9 clock pin (White Wire)
+const int tn9_action = 4;					// TN9 action pin (Edgemost Black Wire)
+
+const int tn9_len = 5;					// Length of tn9 values array
+volatile byte tn9_pos = 0;				// TN9 array position count
+volatile byte tn9_rawval[5] = {
+  0,0,0,0,0};				// TN9 array
+byte tn9_n = 0;						// TN9 interrupt bit count
+byte tn9_cbit = 0;					// TN9 current bit read
+float tn9_ir = 0.0;					// TN9 IR temperature
+float tn9_amb = 0.0;					// TN9 ambient temperature
+#endif
+boolean tn9_irflag = false;				// TN9 flag to indicate IR reading made
+boolean tn9_ambflag = false;			// TN9 flag to indicate ambient temp reading made
+
+#if HUMIDITY
+unsigned int hih_raw = 0;					// HIH4030 Bit Value
+float hih_hum = 0.0;                                              // HIH4030 Humidity
+float hih_tchum = 0.0;                                          // HIH4030 Temperature Corrected Humidity
+#endif
+
+#if SUNLIGHT
+unsigned int li_val = 0;				        // Word to hold 12 bit sunlight values
+#endif
+
+
 
 
 
@@ -93,34 +114,43 @@ unsigned long time_dif = 0;
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 void setup(){
   Serial.begin(1200);
-  Serial2.begin(1200);		        // Lower 5TM
-  Serial3.begin(1200);    		// Upper 5TM
+  pinMode(chipSelect, OUTPUT);		
+  pinMode(green_led, OUTPUT);
+  pinMode(red_led, OUTPUT);
+  digitalWrite(green_led, LOW);
+  digitalWrite(red_led, LOW);  
 
-  pinMode(chipSelect, OUTPUT);		// Pin initialization...
+#if LOWERSOIL
+  Serial2.begin(1200);		    // Lower 5TM
   pinMode(ftm_powerL, OUTPUT);
+  digitalWrite(ftm_powerL, LOW);
+#endif
+
+#if UPPERSOIL
+  Serial3.begin(1200);    		// Upper 5TM
   pinMode(ftm_powerU, OUTPUT);
+  digitalWrite(ftm_powerU, LOW);
+#endif
+
+#if INFRARED
   pinMode(tn9_clk, INPUT);					
   pinMode(tn9_data, INPUT);
   pinMode(tn9_action, OUTPUT);
-  pinMode(green_led, OUTPUT);
-  pinMode(red_led, OUTPUT);
   digitalWrite(tn9_clk, HIGH);
   digitalWrite(tn9_data, HIGH);
   digitalWrite(tn9_action, HIGH);
-  digitalWrite(ftm_powerL, LOW);
-  digitalWrite(ftm_powerU, LOW);
-  digitalWrite(green_led, LOW);
-  digitalWrite(red_led, LOW);
+#endif
 
-  Serial.println("Type any character to start");		// Wait for serial input to start
+  //Serial.println("Type any character to start");		// Wait for serial input to start
   //while (!Serial.available());
   delay(2000);
-  Serial.print("Initializing SD card...");		        // Initialize Data Logger
+
+  //Serial.print("Initializing SD card...");		        // Initialize Data Logger
   if (!SD.begin(chipSelect)) {  				// Card check...
     digitalWrite(red_led, HIGH);  		
     error("Card failed, or not present");
   }
-  Serial.println("Card initialized.");
+  //Serial.println("Card initialized.");
   char filename[] = "LOGGER00.CSV";			        // Create filename
   for (uint8_t i = 0; i < 100; i++) {      			// Indexes file every time program is restarted
     filename[6] = i/10 + '0';				        // !! Will stop at 99 !!
@@ -134,30 +164,73 @@ void setup(){
     digitalWrite(red_led, HIGH);
     error("Couldnt create file");               
   }
-  Serial.print("Logging to: ");
-  Serial.println(filename);
+  //Serial.print("Logging to: ");
+  //Serial.println(filename);
+
   Wire.begin();  						// Initialize RTC communication
   if (!RTC.begin()) {					        // RTC check
     digitalWrite(red_led, HIGH);
     error("RTC failed"); 
   }
+  RTC.adjust(DateTime(__DATE__, __TIME__));
+
+#if PRESSURE   
   bmp.begin();								// Begin BMP085
+#endif
+
+#if TEMPERATURE
   dstemp.begin();							// Begin dallas temp sensor
   dstemp.getAddress(dsaddress, 0);			// Get dallas temp sensor address
   dstemp.setResolution(dsaddress, 12);		// Set dallas temp sensor resolution
+#endif
+
   SPI.begin();
-//  SPI.setBitOrder(MSBFIRST);
-//  SPI.setDataMode(SPI_MODE0);
+  //  SPI.setBitOrder(MSBFIRST);
+  //  SPI.setDataMode(SPI_MODE0);
   SPI.setClockDivider(SPI_CLOCK_DIV16);
   digitalWrite(SS,HIGH);
-  logfile.println("Millis,Month,Day,Year,Hour,Minute,Second,Dallas Amb,Rel Hum,Temp Corrected Rel Hum,Pressure,BMP Amb,IR,TN9 Amb,Soil Lower Temp,Soil Lower Mois,Soil Upper Temp,Soil Upper Mois,Sunlight");
+  logfile.print("Millis,Month,Day,Year,Hour,Minute,Second");
+
+#if TEMPERATURE
+    logfile.print(",Dallas Amb");
+#endif
+
+#if HUMIDITY
+  logfile.print(",Rel Hum,Temp Corrected Rel Hum");
+#endif
+
+#if PRESSURE
+  logfile.print(",Pressure,BMP Amb");
+#endif
+
+#if INFRARED
+  logfile.print(",IR,TN9 Amb");
+#endif
+
+#if LOWERSOIL
+  logfile.print(",Soil Lower Temp,Soil Lower Mois");
+#endif
+
+#if UPPERSOIL
+  logfile.print(",Soil Upper Temp,Soil Upper Mois");
+#endif
+
+#if SUNLIGHT
+  logfile.print(",Sunlight");
+#endif
+
+  logfile.println();  
+  logfile.flush();  
 
   digitalWrite(green_led, HIGH);				// About to enter main loop confirmation
   delay(1000);
   digitalWrite(green_led, LOW);
-  Serial.println("Starting");
+  //Serial.println("Starting");
+
+#if INFRARED
   attachInterrupt(1,tn9Data,FALLING);  		                // Interrupt
   digitalWrite(tn9_action,LOW);				        // Make sensor start sending data
+#endif
 } //setup()
 
 
@@ -168,6 +241,8 @@ void setup(){
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 void loop(){
   DateTime now;
+
+#if INFRARED
   if(tn9_pos == tn9_len && tn9_rawval[0] == 0x4C){		// If sensor has sent IR packet...
     tn9_ir = tn9Temp(tn9_rawval);				// Calculate temperature
     tn9_irflag = true;				        	// Indicate IR reading
@@ -183,48 +258,16 @@ void loop(){
   if(tn9_pos == tn9_len && tn9_rawval[0] == 0x53){		// If sensor has sent junk packet...
     digitalWrite(tn9_action,LOW);				// Make sensor start sending data   
   }
+#else
+  tn9_irflag = tn9_ambflag = true;
+#endif
 
   if(tn9_irflag && tn9_ambflag){			        // If successful IR and Ambient reading...
+#if INFRARED
     digitalWrite(tn9_action,HIGH);                  		// Make TN9 stop sending data. Ensure no Interrupts        	
+#endif
 
-    ftm_i = 0;
-    digitalWrite(ftm_powerL,HIGH);                              // Excite lower 5TM...
-    delay(200);
-    char ftm_inputL[Serial2.available()];                       // Read lower 5TM Values
-    while (Serial2.available()>0){ 
-      ftm_inputL[ftm_i] = Serial2.read();
-      ftm_i++;
-    }
-
-    ftm_i = 0;
-    digitalWrite(ftm_powerU,HIGH);                              // Excite upper 5TM...
-    delay(200);
-    char ftm_inputU[Serial3.available()];                       // Read upper 5TM Values
-    while (Serial3.available()>0){ 
-      ftm_inputU[ftm_i] = Serial3.read();
-      ftm_i++;
-    }
-
-    digitalWrite(ftm_powerL,LOW);				// Turn 5TM's off...
-    digitalWrite(ftm_powerU,LOW);
-    ftmParse(ftm_inputL,ftm_moisL,ftm_tempL);			// Parse 5TM's message...
-    ftmParse(ftm_inputU,ftm_moisU,ftm_tempU);
-
-    bmp_temp = bmp.readTemperature();			         // Measure BMP085 Temperature
-    bmp_pres = bmp.readPressure();				// Measure Pressure
-
-    dstemp.requestTemperatures();			        // Send command to get dallas temp sensor values
-    ds_temp = dstemp.getTempC(dsaddress);	                // Read Temperature
-
-    li_val = ads7841(li_code);					
-    // PLACE BIT CONVERTING EQUATION HERE
-
-    hih_raw = ads7841(hih_code);
-    hih_hum = (float)hih_raw/25.3952 - 25.8065;
-    hih_tchum = hih_hum/(1.0546 - 0.00216*ds_temp);
-
-
-    now = RTC.now();						// Current time
+    now = RTC.now();						    // Current time
     logfile.print(millis());					// Write to file...
     logfile.print(",");
     logfile.print(now.month(), DEC);
@@ -238,35 +281,85 @@ void loop(){
     logfile.print(now.minute(), DEC);
     logfile.print(",");
     logfile.print(now.second(), DEC);
+
+#if TEMPERATURE
+    dstemp.requestTemperatures();			                // Send command to get dallas temp sensor values
+    ds_temp = dstemp.getTempC(dsaddress);	                // Read Temperature
     logfile.print(",");
     logfile.print(ds_temp,4);
+#endif
+
+#if HUMIDITY
+    hih_raw = ads7841(hih_code);
+    hih_hum = (float)hih_raw/25.3952 - 25.8065;
+    hih_tchum = hih_hum/(1.0546 - 0.00216*ds_temp);
     logfile.print(",");
     logfile.print(hih_hum);
     logfile.print(",");
     logfile.print(hih_tchum);
+#endif
+
+#if PRESSURE
+    bmp_temp = bmp.readTemperature();			         // Measure BMP085 Temperature
+    bmp_pres = bmp.readPressure();				         // Measure Pressure
     logfile.print(",");
     logfile.print(bmp_pres);
     logfile.print(",");
     logfile.print(bmp_temp);
+#endif
+
+#if INFRARED
     logfile.print(",");
     logfile.print(tn9_ir);
     logfile.print(",");
     logfile.print(tn9_amb);
+#endif    
+
+#if LOWERSOIL
+    ftm_i = 0;
+    digitalWrite(ftm_powerL,HIGH);                              // Excite lower 5TM...
+    delay(200);
+    char ftm_inputL[Serial2.available()];                       // Read lower 5TM Values
+    while (Serial2.available()>0){ 
+      ftm_inputL[ftm_i] = Serial2.read();
+      ftm_i++;
+    }
+    digitalWrite(ftm_powerL,LOW);				// Turn 5TM's off...
+    ftmParse(ftm_inputL,ftm_moisL,ftm_tempL);			// Parse 5TM's message...
     logfile.print(",");
     logfile.print(ftm_tempL,2);
     logfile.print(",");
     logfile.print(ftm_moisL,5);
+#endif
+
+#if UPPERSOIL
+    ftm_i = 0;
+    digitalWrite(ftm_powerU,HIGH);                              // Excite upper 5TM...
+    delay(200);
+    char ftm_inputU[Serial3.available()];                       // Read upper 5TM Values
+    while (Serial3.available()>0){ 
+      ftm_inputU[ftm_i] = Serial3.read();
+      ftm_i++;
+    }
+    digitalWrite(ftm_powerU,LOW);
+    ftmParse(ftm_inputU,ftm_moisU,ftm_tempU);
     logfile.print(",");
     logfile.print(ftm_tempU,2);
     logfile.print(",");
     logfile.print(ftm_moisU,5);
+#endif
+
+#if SUNLIGHT
+    li_val = ads7841(li_code);					
+    // PLACE BIT CONVERTING EQUATION HERE
     logfile.print(",");
-    logfile.println(li_val);
+    logfile.print(li_val);
+#endif
+
+    logfile.println();
     logfile.flush();						// Save file !! NECESSARY !!
-
-
     digitalWrite(green_led, HIGH);				// Write confirmation
-    delay(100);
+    delay(150);
     digitalWrite(green_led, LOW);
 
     time_dif = millis()-time_old;
@@ -283,13 +376,21 @@ void loop(){
         }
       }
     }
+    delay(7500);						// Wait for next reading
 
+#if LOWERSOIL
+    ftm_moisL = ftm_tempL = 0.0; 	// Reset 5TM values
+#endif    
 
-    delay(8000);						// Wait for next reading
+#if UPPERSOIL
+    ftm_moisU = ftm_tempU = 0.0;
+#endif    
+
+#if INFRARED    
     tn9_irflag = false;						// Reset TN9 flags...
     tn9_ambflag = false;
-    ftm_moisL = ftm_moisU = ftm_tempL = ftm_tempU = 0.0;	// Reset 5TM values
     digitalWrite(tn9_action,LOW);				// Make tn9 start sending data  
+#endif    
   }											
 
 } //loop()
@@ -309,7 +410,7 @@ void error(char *str){			                        // Used when initializing SD ca
 
 void ftmParse(char input[], double &mois, double &temp){	// Used to parse 5TM input string...
   int values[3] = {
-    0,0,0        };							// Moisture, checksum, temperature 
+    0,0,0  };							// Moisture, checksum, temperature 
   int fieldIndex = 0;						// Values index count
   int check = 0;						// Stop byte position
   for(int j = 0; j < strlen(input); j++){    		        // Parse input string...
@@ -344,7 +445,7 @@ void ftmParse(char input[], double &mois, double &temp){	// Used to parse 5TM in
   }
 } //ftm_parse()
 
-
+#if INFRARED
 void tn9Data(){							// TN9 Interrupt Function...
   tn9_cbit =  digitalRead(tn9_data);				// Read bit
   if(tn9_pos >= tn9_len) tn9_pos = 0;				// Keep index below 5
@@ -380,6 +481,9 @@ float tn9Temp(volatile byte tn9Values[]){		        // TN9 temperature calculatio
   }
   return(temperature);						// Return
 } //tn9Temp
+#endif
+
+
 
 
 unsigned int ads7841(const byte control){    // Function to read ADS7841
@@ -394,6 +498,7 @@ unsigned int ads7841(const byte control){    // Function to read ADS7841
   bitnum = (word(msb) << 5) | lsb;
   return bitnum;                             // Return
 }
+
 
 
 

@@ -6,7 +6,7 @@
  All sensors can be run from 5 V Arduino pin.  This code is only compatible with the Arduino Mega.
  Remember to run two jumper wires from analog pins 4 and 5 to digital pins 20 and 21 respectively.
  On the data logging shield, jumper wires will be required from digital pins 8 and 9 to the 
- red LED and green LED respectively.  Lines 20-26 have a list of preprocessor definitions.  Make sure
+ red LED and green LED respectively.  Lines 22-28 have a list of preprocessor definitions.  Make sure
  each is set to 1 if being used or 0 if not being used.  These instructions will be updated if
  the custom shield works.  For more information about the code itself, please go to the end
  of the document.
@@ -19,6 +19,8 @@
 // SDA = 20;                                // I2C Pins as a reminder
 // SCL = 21;
 
+
+// !! THE HUMIDITY SENSOR REQUIRES THE TEMPERATURE SENSOR FOR TEMPERATURE CORRECTION !!
 #define PRESSURE 1
 #define TEMPERATURE 1
 #define UPPERSOIL 1                         // Serial3
@@ -64,7 +66,8 @@ DeviceAddress dsaddress;			// Sets Address;
 float ds_temp = 0.0;				// Dallas sensor temperature
 #endif
 
-int ftm_i = 0;					            // 5TM index counter    	                                    	
+int ftm_i = 0;					            // 5TM index counter
+// The above line is initialized only once to avoid double initialization    	                                    	
 
 #if UPPERSOIL
 const int ftm_powerU = 26;          	    // Upper 5TM sensor power pin (White Wire)
@@ -86,7 +89,8 @@ const int tn9_clk = 3;						// TN9 clock pin (White Wire)
 const int tn9_action = 4;					// TN9 action pin (Edgemost Black Wire)
 const int tn9_len = 5;						// Length of tn9 values array
 volatile byte tn9_pos = 0;					// TN9 array position count
-volatile byte tn9_rawval[5] = {0,0,0,0,0};	// TN9 array
+volatile byte tn9_rawval[5] = {
+  0,0,0,0,0};	// TN9 array
 byte tn9_n = 0;								// TN9 interrupt bit count
 byte tn9_cbit = 0;							// TN9 current bit read
 float tn9_ir = 0.0;							// TN9 IR temperature
@@ -115,49 +119,53 @@ unsigned int li_val = 0;				    // Word to hold 12 bit sunlight values
 // SETUP //////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 void setup(){
-  //Serial.begin(1200);						// For Serial output to computer, uncomment Serial.foo() lines			
+  Serial.begin(9600);						// For Serial output to computer, uncomment Serial.foo() lines			
   pinMode(chipSelect, OUTPUT);				// Data Logging Shield Chip Select
   pinMode(green_led, OUTPUT);
   pinMode(red_led, OUTPUT);
   digitalWrite(green_led, LOW);
-  digitalWrite(red_led, LOW);  
-
-#if LOWERSOIL
-  Serial2.begin(1200);		    // Lower 5TM
-  pinMode(ftm_powerL, OUTPUT);
-  digitalWrite(ftm_powerL, LOW);
-#endif
-
-#if UPPERSOIL
-  Serial3.begin(1200);    		// Upper 5TM
-  pinMode(ftm_powerU, OUTPUT);
-  digitalWrite(ftm_powerU, LOW);
-#endif
-
-#if INFRARED					// TN9 Thermometer
-  pinMode(tn9_clk, INPUT);					
-  pinMode(tn9_data, INPUT);
-  pinMode(tn9_action, OUTPUT);
-  digitalWrite(tn9_clk, HIGH);
-  digitalWrite(tn9_data, HIGH);
-  digitalWrite(tn9_action, HIGH);
-#endif
+  digitalWrite(red_led, LOW);
 
   //Serial.println("Type any character to start");		// Wait for serial input to start
   //while (!Serial.available());
   delay(2000);					// Delay so operator has time to look
 
-  //Serial.print("Initializing SD card...");		    // Initialize Data Logger
-  if (!SD.begin(chipSelect)) {  						// Card check...
+  Wire.begin();  						// Initialize RTC communication
+  if (!RTC.begin()) {					// RTC check
+    digitalWrite(red_led, HIGH);
+    error("RTC failed"); 
+  }
+  RTC.adjust(DateTime(__DATE__, __TIME__));		// Set DS1307 to time of compilation
+
+  DateTime now;
+  now = RTC.now();
+  char filename[13];
+  filename[0] = now.month() / 10 + '0';
+  filename[1] = now.month() % 10 + '0';
+  filename[2] = now.day() / 10 + '0';
+  filename[3] = now.day() % 10 + '0';
+  filename[4] = (now.year() % 100) / 10 + '0';
+  filename[5] = now.year() % 10 + '0';
+  filename[6] = '-';
+  filename[7] = '-';
+  filename[8] = '.';
+  filename[9] = 'c';
+  filename[10] = 's';
+  filename[11] = 'v';
+  filename[12] = '\0';
+  //Serial.println(filename);
+
+  //Serial.print("Initializing SD card...");		// Initialize Data Logger
+  if (!SD.begin(chipSelect)) {  			    // Card check...
     digitalWrite(red_led, HIGH);  		
     error("Card failed, or not present");
   }
   //Serial.println("Card initialized.");
-  char filename[] = "LOGGER00.CSV";			        // Create filename
+
   for (uint8_t i = 0; i < 100; i++) {      			// Indexes file every time program is restarted
     filename[6] = i/10 + '0';				        // !! Will stop at 99 !!
     filename[7] = i%10 + '0';
-    if (! SD.exists(filename)) {
+    if (!SD.exists(filename)) {
       logfile = SD.open(filename, FILE_WRITE); 
       break;  
     }
@@ -169,12 +177,26 @@ void setup(){
   //Serial.print("Logging to: ");
   //Serial.println(filename);
 
-  Wire.begin();  						// Initialize RTC communication
-  if (!RTC.begin()) {					// RTC check
-    digitalWrite(red_led, HIGH);
-    error("RTC failed"); 
-  }
-  RTC.adjust(DateTime(__DATE__, __TIME__));		// Set DS1307 to time of compilation
+#if LOWERSOIL
+  Serial2.begin(1200);		    // Lower 5TM
+  pinMode(ftm_powerL, OUTPUT);
+  digitalWrite(ftm_powerL, LOW);
+#endif
+
+#if UPPERSOIL
+  Serial3.begin(1200);    		// Upper 5TM
+  pinMode(ftm_powerU, OUTPUT);
+  digitalWrite(ftm_powerU, LOW);
+#endif  
+
+#if INFRARED					// TN9 Thermometer
+  pinMode(tn9_clk, INPUT);					
+  pinMode(tn9_data, INPUT);
+  pinMode(tn9_action, OUTPUT);
+  digitalWrite(tn9_clk, HIGH);
+  digitalWrite(tn9_data, HIGH);
+  digitalWrite(tn9_action, HIGH);
+#endif
 
 #if PRESSURE   
   bmp.begin();								// Begin BMP085
@@ -194,7 +216,7 @@ void setup(){
   logfile.print("Millis,Month,Day,Year,Hour,Minute,Second");	// The following logfile.print() functions collectively print the header
 
 #if TEMPERATURE
-    logfile.print(",Dallas Amb");
+  logfile.print(",Dallas Amb");
 #endif
 
 #if HUMIDITY
@@ -365,10 +387,23 @@ void loop(){
     digitalWrite(green_led, LOW);
 
     time_dif = millis()-time_old;
-    if(now.hour() == 0 && now.minute() == 0 && time_dif >= 86400000){   // If one day has passed...
+    if(now.hour() == 0 && now.minute() == 0 && time_dif >= 600){   // If new day has started and sketch started before 23:50...
       time_old = millis();                                  // Reset timers
       time_dif = 0;     
-      char filename[] = "LOGGER00.CSV";                                                                       
+      char filename[13];
+      filename[0] = now.month() / 10 + '0';
+      filename[1] = now.month() % 10 + '0';
+      filename[2] = now.day() / 10 + '0';
+      filename[3] = now.day() % 10 + '0';
+      filename[4] = (now.year() % 100) / 10 + '0';
+      filename[5] = now.year() % 10 + '0';
+      filename[6] = '-';
+      filename[7] = '-';
+      filename[8] = '.';
+      filename[9] = 'c';
+      filename[10] = 's';
+      filename[11] = 'v';
+      filename[12] = '\0';                                                                            
       for (uint8_t i = 0; i < 100; i++) {                   // Check for existing filenames                                                     
         filename[6] = i/10 + '0';
         filename[7] = i%10 + '0';
@@ -413,7 +448,8 @@ void error(char *str){			                        // Used when initializing SD ca
 
 
 void ftmParse(char input[], double &mois, double &temp){	// Used to parse 5TM input string...
-  int values[3] = {0,0,0};							        // Moisture, checksum, temperature 
+  int values[3] = {
+    0,0,0    };							        // Moisture, checksum, temperature 
   int fieldIndex = 0;						                // Values index count
   int check = 0;						                    // Stop byte position
   for(int j = 0; j < strlen(input); j++){    		        // Parse input string...
@@ -509,5 +545,14 @@ unsigned int ads7841(const byte control){    // Function to read ADS7841
 // CODE INFO //////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /* The main sensor this code depends on is a TN9 infrared temperature sensor.  This is 
-because the TN9 has a very strange communication method that needs to bit-banged.  
-*/
+ because the TN9 has a very strange communication method that needs to bit-banged.  It sends 4 packets
+ at 40 bits long, and the Arduino uses one of its external interrupts to receive the message
+ (see function tn9data()).  The 4 packets are sent in the following order: 
+ infrared, ambient, infrared, junk.  In the main loop, it checks to see whether an infrared
+ packet and a ambient packet has been received and saved.  Once it has, it jumps into an
+ if block where all the other sensors are polled.  All the other sensors are self-explanatory
+ or use libraries to function.  Finally, the entire file is peppered with preprocessor directives
+ that allow us to mix and match sensors without having to worry about the code failing. 
+ */
+
+

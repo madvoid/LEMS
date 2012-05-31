@@ -4,7 +4,7 @@ While updates may be rare, this code is always a work in progress.
 
 
 Includes code for following sensors:
-LI200 Pyranometer with MCP3201 ADC
+LI200 Pyranometer with ADS7841 ADC (Though the circuit is more important)
 BMP085 Pressure Sensor
 DS18B20 Temperature Sensor
 HIH4030 Humidity Sensor

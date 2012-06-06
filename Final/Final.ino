@@ -19,10 +19,11 @@
 // SDA = 20;                                // I2C Pins as a reminder
 // SCL = 21;
 
-// !! THE HUMIDITY SENSOR REQUIRES THE TEMPERATURE SENSOR FOR TEMPERATURE CORRECTION !!
+// !! THE HUMIDITY SENSOR REQUIRES A TEMPERATURE SENSOR FOR TEMPERATURE CORRECTION !!
+// Replace temp component in line 320 with desired temp value (DS18B20 Recommended)
 #define PRESSURE 1
 #define TEMPERATURE 1
-#define UPPERSOIL 1                         // Serial3
+#define UPPERSOIL 0                         // Serial3
 #define LOWERSOIL 0                         // Serial2
 #define INFRARED 1
 #define HUMIDITY 1
@@ -144,8 +145,10 @@ void setup(){
 		digitalWrite(red_led, HIGH);
 		error("RTC failed"); 
 	}
-	RTC.adjust(DateTime(__DATE__, __TIME__));	// Set DS1307 to time of compilation
 	
+	// RTC.adjust(DateTime(__DATE__, __TIME__));	// Set DS1307 to time of compilation
+	// Do not uncomment above line unless you know what you are doing! It is used to set
+	// RTC Time.
 	
 	DateTime now;								// Class to store RTC values
 	now = RTC.now();							// Store date & time
@@ -228,7 +231,6 @@ void setup(){
 		digitalWrite(ftm_powerL, LOW);
 		logfile.print(",Soil Lower Temp,Soil Lower Mois");	
 	#endif
-
 	
 	#if UPPERSOIL
 		Serial3.begin(1200);    				// Upper 5TM

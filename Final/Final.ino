@@ -1,4 +1,5 @@
-// Sensor Station Final Code - Revision 3
+// Sensor Station Final Code
+// https://github.com/madvoid/LEMS/blob/master/Final/Final.ino
 // Nipun Gunawardena
 /* The lower 5TM sensor data wire will be connected to digital pin 17 (Serial2 RX)
  and the upper 5TM sensor data wire will be connected to digital pin 15 (Serial3 RX)
@@ -25,9 +26,17 @@
 #define TEMPERATURE 1
 #define UPPERSOIL 0                         // Serial3
 #define LOWERSOIL 0                         // Serial2
-#define INFRARED 1
+#define INFRARED 1			
 #define HUMIDITY 1
-#define SUNLIGHT 1
+#define SUNLIGHT 1		// !!! REMEMBER TO INCLUDE CORRECT CALIBRATION CONSTANT (Line 35) !!!
+
+
+#if SUNLIGHT
+	unsigned int li_val = 0;			    // Word to hold 12 bit sunlight values
+	const float cal_const = 91.96E-6/1000;  // Licor Calibration Constant. Units of (Amps/(W/m^2))
+	const float cal_resistor = 44090;		// Exact Resistor Value used by Op-Amp
+	float sunlight = 0.0;					// Converted Value
+#endif
 
 
 #include <SD.h>								// SD card library
@@ -115,9 +124,7 @@ boolean tn9_ambflag = false;				// TN9 flag to indicate ambient temp reading mad
 	float hih_tchum = 0.0;                  // HIH4030 Temperature Corrected Humidity
 #endif
 
-#if SUNLIGHT
-	unsigned int li_val = 0;			    // Word to hold 12 bit sunlight values
-#endif
+
 
 
 
@@ -378,9 +385,9 @@ void loop(){
 		
 		#if SUNLIGHT
 			li_val = ads7841(li_code);								// Get sunlight from ads7841
-			// PLACE BIT CONVERTING EQUATION HERE IF DESIRED
+			sunlight = (4.5/4095)*(1/cal_resistor)*(1/cal_const)*li_val;  // Convert to W/m^2
 			logfile.print(",");										// Write sunlight to file
-			logfile.print(li_val);
+			logfile.print(sunlight);
 		#endif
 		
 		logfile.println();
@@ -391,7 +398,7 @@ void loop(){
 	
 		time_dif = millis()-time_old;
 		if(now.hour() == 0 && now.minute() == 0 && time_dif >= 600){   // If new day has started and sketch started before 23:50...
-			time_old = millis();                                  	// Reset timers
+			time_old = millis();                                  	   // Reset timers
 			time_dif = 0;     
 			char filename[13];
 			filename[0] = now.month() / 10 + '0';

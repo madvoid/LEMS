@@ -397,7 +397,7 @@ void loop(){
 		digitalWrite(green_led, LOW);
 	
 		time_dif = millis()-time_old;
-		if(now.hour() == 0 && now.minute() == 0 && time_dif >= 10000){   // If new day has started and sketch started before 23:50...
+		if(now.hour() == 0 && now.minute() == 0 && time_dif >= 600000){   // If new day has started and sketch started before 23:50...
 			time_old = millis();                                  	   // Reset timers
 			time_dif = 0;     
 			char filename[13];

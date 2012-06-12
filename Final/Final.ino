@@ -42,7 +42,7 @@
 #include <SD.h>								// SD card library
 #include <Wire.h>							// I2C library
 #include "RTClib.h"							// Real Time Clock (RTC) library
-#include <SPI.h>		
+#include <SPI.h>							// SPI library
 RTC_DS1307 RTC;								// Initialize RTC
 File logfile;								// Initialize class called logfile
 const int chipSelect = 10;					// Pin needed for data logger
@@ -397,7 +397,7 @@ void loop(){
 		digitalWrite(green_led, LOW);
 	
 		time_dif = millis()-time_old;
-		if(now.hour() == 0 && now.minute() == 0 && time_dif >= 600){   // If new day has started and sketch started before 23:50...
+		if(now.hour() == 0 && now.minute() == 0 && time_dif >= 10000){   // If new day has started and sketch started before 23:50...
 			time_old = millis();                                  	   // Reset timers
 			time_dif = 0;     
 			char filename[13];
@@ -501,7 +501,7 @@ void ftmParse(char input[], double &mois, double &temp){	// Used to parse 5TM in
 		tn9_n++;							                // Increment bit count
 		if(tn9_n == 8){		        			        	// Increment position count based on bits read in...
 			tn9_pos++;
-		tn9_n = 0; 
+			tn9_n = 0; 
 		}
 		if(tn9_pos == tn9_len){ 					       // If complete "packet" sent, stop sensor from sending 
 			digitalWrite(tn9_action,HIGH);  		       // again until main loop allows it.

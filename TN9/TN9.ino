@@ -14,7 +14,7 @@ byte ambValues[5] = {0,0,0,0,0};			        // Variable to store Ambient reading 
 
 const int len = 5;					        // Length of values array
 const int clkPin = 3;						// Pins
-const int dataPin = 2;
+const int dataPin = 5;
 const int actionPin = 4;
 
 float irtemp = 0.0;                                             // Infrared Temperature

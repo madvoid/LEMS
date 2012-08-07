@@ -24,17 +24,17 @@
 // Replace temp component in line 320 with desired temp value (DS18B20 Recommended)
 #define PRESSURE 1
 #define TEMPERATURE 1
-#define UPPERSOIL 0                         // Serial3
-#define LOWERSOIL 0                         // Serial2
+#define UPPERSOIL 1                         // Serial3
+#define LOWERSOIL 1                         // Serial2
 #define INFRARED 1			
 #define HUMIDITY 1
-#define SUNLIGHT 1		// !!! REMEMBER TO INCLUDE CORRECT CALIBRATION CONSTANT (Line 35) !!!
-
+#define SUNLIGHT 1		// !!! REMEMBER TO INCLUDE CORRECT CALIBRATION CONSTANT AND RESISTOR VALUE (Line 36-37) !!!
+#define IDENTITY 'A'    // !!! CHANGE THE CHARACTER TO WHATEVER 1-DIGIT SERIAL NUMBER HAS BEEN CHOSEN FOR LEMS UNIT !!!
 
 #if SUNLIGHT
 	unsigned int li_val = 0;			    // Word to hold 12 bit sunlight values
 	const float cal_const = 91.96E-6/1000;  // Licor Calibration Constant. Units of (Amps/(W/m^2))
-	const float cal_resistor = 44090;		// Exact Resistor Value used by Op-Amp
+	const float cal_resistor = 44250;		// Exact Resistor Value used by Op-Amp
 	float sunlight = 0.0;					// Converted Value
 #endif
 
@@ -84,7 +84,7 @@ int ftm_i = 0;					            // 5TM index counter
 
 
 #if UPPERSOIL
-	const int ftm_powerU = 26;          	// Upper 5TM sensor power pin (White Wire)
+	const int ftm_powerU = 7;	          	// Upper 5TM sensor power pin (White Wire)
 	// Upper 5TM corresponds to Serial3 (Red Wire)
 	double ftm_moisU = 0.0;     			// Upper 5TM moisture
 	double ftm_tempU = 0.0;     			// Upper 5TM temp
@@ -92,7 +92,7 @@ int ftm_i = 0;					            // 5TM index counter
 
 
 #if LOWERSOIL
-	const int ftm_powerL = 24;          	// Lower 5TM sensor power pin (White Wire)
+	const int ftm_powerL = 6;	          	// Lower 5TM sensor power pin (White Wire)
 	// Lower 5TM corresponds to Serial2
 	double ftm_moisL = 0.0;  				// Lower 5TM moisture
 	double ftm_tempL = 0.0;     			// Lower 5TM temp
@@ -100,7 +100,7 @@ int ftm_i = 0;					            // 5TM index counter
 
 
 #if INFRARED
-	const int tn9_data = 2;						// TN9 data pin (Green Wire)
+	const int tn9_data = 5;						// TN9 data pin (Green Wire)
 	const int tn9_clk = 3;						// TN9 clock pin (White Wire)
 	const int tn9_action = 4;					// TN9 action pin (Edgemost Black Wire)
 	const int tn9_len = 5;						// Length of tn9 values array
@@ -167,7 +167,7 @@ void setup(){
 	filename[4] = (now.year() % 100) / 10 + '0';	// Parse Year
 	filename[5] = now.year() % 10 + '0';
 	filename[6] = '-';							// Version Number
-	filename[7] = '-';
+	filename[7] = IDENTITY;
 	filename[8] = '.';
 	filename[9] = 'c';							// Extension
 	filename[10] = 's';
@@ -184,9 +184,8 @@ void setup(){
 	//Serial.println("Card initialized.");
 
 	
-	for (uint8_t i = 0; i < 100; i++){      		// Adds prefix to filename in case Arduino started twice on same date
-		filename[6] = i/10 + '0';					// !! Will stop at 99 !! If 99 is hit, will probably lead to unknown results
-		filename[7] = i%10 + '0';
+	for (uint8_t i = 0; i < 10; i++){      		// Adds prefix to filename in case Arduino started twice on same date
+		filename[6] = i + '0';					// !! Will stop at 9 !! If 9 is hit, will probably lead to unknown results
 		if (!SD.exists(filename)) {
 			logfile = SD.open(filename, FILE_WRITE); 
 			break;  
@@ -342,11 +341,21 @@ void loop(){
 			logfile.print(bmp_temp);
 		#endif
 	
-		#if INFRARED												
-			logfile.print(",");										// Write Infrared temp to file
-			logfile.print(tn9_ir);
+		#if INFRARED												// Write Infrared temp to file
+			logfile.print(",");										
+			if (tn9_ir > -273.0){
+				logfile.print(tn9_ir);
+			}
+			else{
+				logfile.print("NaN");
+			}
 			logfile.print(",");
-			logfile.print(tn9_amb);
+			if (tn9_amb > -273.0){
+				logfile.print(tn9_amb);
+			}
+			else{
+				logfile.print("NaN");
+			}
 		#endif    
 		
 		#if LOWERSOIL
@@ -360,10 +369,18 @@ void loop(){
 			}
 			digitalWrite(ftm_powerL,LOW);							// Turn 5TM off
 			ftmParse(ftm_inputL,ftm_moisL,ftm_tempL);				// Parse 5TM's message...
-			logfile.print(",");										// Write lower 5TM to file			
-			logfile.print(ftm_tempL,2);
-			logfile.print(",");
-			logfile.print(ftm_moisL,5);
+			if (ftm_tempL > -273.0){
+				logfile.print(",");										// Write lower 5TM to file			
+				logfile.print(ftm_tempL,2);
+				logfile.print(",");
+				logfile.print(ftm_moisL,5);
+			}
+			else{
+				logfile.print(",");
+				logfile.print("NaN");
+				logfile.print(",");
+				logfile.print("NaN");
+			}
 		#endif
 		
 		#if UPPERSOIL
@@ -377,10 +394,18 @@ void loop(){
 			}
 			digitalWrite(ftm_powerU,LOW);							// Turn 5TM off
 			ftmParse(ftm_inputU,ftm_moisU,ftm_tempU);				// Parse 5TM's message...
-			logfile.print(",");										// Write upper 5TM to file
-			logfile.print(ftm_tempU,2);
-			logfile.print(",");
-			logfile.print(ftm_moisU,5);
+			if (ftm_tempU > -273.0){
+				logfile.print(",");										// Write lower 5TM to file			
+				logfile.print(ftm_tempU,2);
+				logfile.print(",");
+				logfile.print(ftm_moisU,5);
+			}
+			else{
+				logfile.print(",");
+				logfile.print("NaN");
+				logfile.print(",");
+				logfile.print("NaN");
+			}
 		#endif
 		
 		#if SUNLIGHT
@@ -408,20 +433,48 @@ void loop(){
 			filename[4] = (now.year() % 100) / 10 + '0';
 			filename[5] = now.year() % 10 + '0';
 			filename[6] = '-';
-			filename[7] = '-';
+			filename[7] = IDENTITY;
 			filename[8] = '.';
 			filename[9] = 'c';
 			filename[10] = 's';
 			filename[11] = 'v';
 			filename[12] = '\0';                                                                            
-			for (uint8_t i = 0; i < 100; i++){                   	// Check for existing filenames                                                     
-				filename[6] = i/10 + '0';
-				filename[7] = i%10 + '0';
+			for (uint8_t i = 0; i < 10; i++){                   	// Check for existing filenames                                                     
+				filename[6] = i + '0';
 				if (! SD.exists(filename)){                         // If not existing, make new file
 			  		logfile = SD.open(filename, FILE_WRITE); 
 			  		break;                                          // leave the loop
 				}
 		  	}
+		  	if (!logfile){											// File successfully opened check
+				digitalWrite(red_led, HIGH);	
+				error("Couldnt create file");               
+			}
+
+			logfile.print("Millis,Month,Day,Year,Hour,Minute,Second");	// The following logfile.print() functions collectively print the header
+			#if TEMPERATURE
+				logfile.print(",Dallas Amb");
+			#endif		
+			#if HUMIDITY
+				logfile.print(",Rel Hum,Temp Corrected Rel Hum");
+			#endif
+			#if PRESSURE
+				logfile.print(",Pressure,BMP Amb");
+			#endif
+			#if INFRARED
+				logfile.print(",IR,TN9 Amb");
+			#endif
+			#if LOWERSOIL
+				logfile.print(",Soil Lower Temp,Soil Lower Mois");
+			#endif
+			#if UPPERSOIL
+				logfile.print(",Soil Upper Temp,Soil Upper Mois");
+			#endif
+			#if SUNLIGHT
+				logfile.print(",Sunlight");
+			#endif
+			logfile.println();
+			logfile.flush();
 		}
 		delay(7500);												// Wait for next reading
 		

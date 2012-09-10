@@ -29,7 +29,6 @@
 #define INFRARED 1			
 #define HUMIDITY 1
 #define SUNLIGHT 1		// !!! REMEMBER TO INCLUDE CORRECT CALIBRATION CONSTANT AND RESISTOR VALUE (Line 36-37) !!!
-#define IDENTITY 'A'    // !!! CHANGE THE CHARACTER TO WHATEVER 1-DIGIT SERIAL NUMBER HAS BEEN CHOSEN FOR LEMS UNIT !!!
 
 #if SUNLIGHT
 	unsigned int li_val = 0;			    // Word to hold 12 bit sunlight values
@@ -41,7 +40,7 @@
 
 #include <SD.h>								// SD card library
 #include <Wire.h>							// I2C library
-#include "RTClib.h"							// Real Time Clock (RTC) library
+#include <RTClib.h>							// Real Time Clock (RTC) library
 #include <SPI.h>							// SPI library
 RTC_DS1307 RTC;								// Initialize RTC
 File logfile;								// Initialize class called logfile
@@ -50,6 +49,7 @@ const int green_led = 9;		    		// Datalogger green LED
 const int red_led = 8;						// Datalogger red LED		
 unsigned long time_old = 0;		 			// Variables used for timing controls
 unsigned long time_dif = 0;
+char filename[] = "LOG_A_00.CSV";		    // !!! CHANGE IDENTIFICATION CODE FOR ALL CODES !!!
 
 
 // ADS7841 Control Codes
@@ -157,23 +157,6 @@ void setup(){
 	// Do not uncomment above line unless you know what you are doing! It is used to set
 	// RTC Time.
 	
-	DateTime now;								// Class to store RTC values
-	now = RTC.now();							// Store date & time
-	char filename[13];							// Filename initialization
-	filename[0] = now.month() / 10 + '0';		// Parse Month
-	filename[1] = now.month() % 10 + '0';
-	filename[2] = now.day() / 10 + '0';			// Parse Day
-	filename[3] = now.day() % 10 + '0';
-	filename[4] = (now.year() % 100) / 10 + '0';	// Parse Year
-	filename[5] = now.year() % 10 + '0';
-	filename[6] = '-';							// Version Number
-	filename[7] = IDENTITY;
-	filename[8] = '.';
-	filename[9] = 'c';							// Extension
-	filename[10] = 's';
-	filename[11] = 'v';
-	filename[12] = '\0';
-	//Serial.println(filename);
 
 
 	//Serial.print("Initializing SD card...");	// Initialize Data Logger
@@ -184,12 +167,13 @@ void setup(){
 	//Serial.println("Card initialized.");
 
 	
-	for (uint8_t i = 0; i < 10; i++){      		// Adds prefix to filename in case Arduino started twice on same date
-		filename[6] = i + '0';					// !! Will stop at 9 !! If 9 is hit, will probably lead to unknown results
-		if (!SD.exists(filename)) {
-			logfile = SD.open(filename, FILE_WRITE); 
-			break;  
-		}
+	for (uint8_t i = 0; i < 100; i++) {            // Indexes file every time program is restarted	
+	    filename[6] = i/10 + '0';                  // !! Will stop at 99 !!	
+	    filename[7] = i%10 + '0';	
+	    if (! SD.exists(filename)) {	
+	    	logfile = SD.open(filename, FILE_WRITE); 	
+	     	break;  	
+	    }	
 	}
 	if (!logfile){								// File successfully opened check
 		digitalWrite(red_led, HIGH);	
@@ -425,27 +409,15 @@ void loop(){
 		if(now.hour() == 0 && now.minute() == 0 && time_dif >= 600000){   // If new day has started and sketch started before 23:50...
 			time_old = millis();                                  	   // Reset timers
 			time_dif = 0;     
-			char filename[13];
-			filename[0] = now.month() / 10 + '0';
-			filename[1] = now.month() % 10 + '0';
-			filename[2] = now.day() / 10 + '0';
-			filename[3] = now.day() % 10 + '0';
-			filename[4] = (now.year() % 100) / 10 + '0';
-			filename[5] = now.year() % 10 + '0';
-			filename[6] = '-';
-			filename[7] = IDENTITY;
-			filename[8] = '.';
-			filename[9] = 'c';
-			filename[10] = 's';
-			filename[11] = 'v';
-			filename[12] = '\0';                                                                            
-			for (uint8_t i = 0; i < 10; i++){                   	// Check for existing filenames                                                     
-				filename[6] = i + '0';
-				if (! SD.exists(filename)){                         // If not existing, make new file
-			  		logfile = SD.open(filename, FILE_WRITE); 
-			  		break;                                          // leave the loop
-				}
-		  	}
+			char filename[] = "LOG_A_00.CSV";
+			for (uint8_t i = 0; i < 100; i++) {            // Indexes to next number up, depends on date
+	    		filename[6] = i/10 + '0';                  // !! Will stop at 99 !!	
+	    		filename[7] = i%10 + '0';	
+	    		if (! SD.exists(filename)) {	
+	    			logfile = SD.open(filename, FILE_WRITE); 	
+	     			break;  	
+	    		}	
+			}
 		  	if (!logfile){											// File successfully opened check
 				digitalWrite(red_led, HIGH);	
 				error("Couldnt create file");               

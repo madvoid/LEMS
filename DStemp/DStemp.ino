@@ -4,7 +4,7 @@
 #include <OneWire.h>                                // OneWire and DallasTemperature libraries
 #include <DallasTemperature.h>
 
-OneWire oneWire(2);                                 // Initialize OneWire comm on pin 2
+OneWire oneWire(38);                                 // Initialize OneWire comm on pin 2
 DallasTemperature dstemp(&oneWire);                 // Initialize DStemp sensor on OneWire bus 
 DeviceAddress dsaddress;                            // Make device address
 

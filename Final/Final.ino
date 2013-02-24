@@ -23,7 +23,7 @@
 // !! THE HUMIDITY SENSOR REQUIRES A TEMPERATURE SENSOR FOR TEMPERATURE CORRECTION !!
 // Replace temp component in line 320 with desired temp value (DS18B20 Recommended)
 #define PRESSURE 1
-#define TEMPERATURE 1
+#define TEMPERATURE 1  						// If temperature is included, so is humidity.  Make sure both are set to 1
 #define UPPERSOIL 1                         // Serial3
 #define LOWERSOIL 1                         // Serial2
 #define INFRARED 1			
@@ -33,7 +33,7 @@
 #if SUNLIGHT
 	unsigned int li_val = 0;			    // Word to hold 12 bit sunlight values
 	const float cal_const = 91.96E-6/1000;  // Licor Calibration Constant. Units of (Amps/(W/m^2))
-	const float cal_resistor = 44250;		// Exact Resistor Value used by Op-Amp
+	const float cal_resistor = 44300;		// Exact Resistor Value used by Op-Amp
 	float sunlight = 0.0;					// Converted Value
 #endif
 
@@ -49,14 +49,15 @@ const int green_led = 9;		    		// Datalogger green LED
 const int red_led = 8;						// Datalogger red LED		
 unsigned long time_old = 0;		 			// Variables used for timing controls
 unsigned long time_dif = 0;
-char filename[] = "LOG_A_00.CSV";		    // !!! CHANGE IDENTIFICATION CODE FOR ALL CODES !!!
+void error(char *str);                              // Error function prototype
+char filename[] = "LOG_T_00.CSV";		    // !!! CHANGE IDENTIFICATION CODE FOR ALL CODES AND BELOW !!! 
 
 
 // ADS7841 Control Codes
 // The channel for the ADS7841 is chosen by these codes.  They get passed into the ads7841()
 // function.
 const byte li_code =  0b10010100;     		// ADC channel 0 - Used by Li200
-const byte hih_code = 0b11010100;     		// ADC channel 1 - Used by HIH4030
+const byte ch1_code = 0b11010100;     		// ADC channel 1 - Currently unused
 const byte ch2_code = 0b10100100;     		// ADC channel 2 - Currently unused
 const byte ch3_code = 0b11100100;     		// ADC channel 3 - Currently unused
 
@@ -70,12 +71,9 @@ const byte ch3_code = 0b11100100;     		// ADC channel 3 - Currently unused
 
 
 #if TEMPERATURE
-	#include <OneWire.h>					// OneWire Library 
-	#include <DallasTemperature.h>			// Dallas Temperature Library; Requires <OneWire.h> to run
-	OneWire oneWire(38);					// Initialize OneWire Device on pin 23
-	DallasTemperature dstemp(&oneWire);		// Initializes OneWire Device and Dallas Temperature Sensor
-	DeviceAddress dsaddress;				// Sets Address;
-	float ds_temp = 0.0;					// Dallas sensor temperature
+	#include <SHT1x.h>
+	SHT1x sht1x(18, 19);			        // dataPin = 18 = TX1, clockPin = 19 = RX1
+	float sht_temp = 0.0;
 #endif
 
 
@@ -110,6 +108,8 @@ int ftm_i = 0;					            // 5TM index counter
 	byte tn9_cbit = 0;							// TN9 current bit read
 	float tn9_ir = 0.0;							// TN9 IR temperature
 	float tn9_amb = 0.0;						// TN9 ambient temperature
+        void tn9Data();                                                // Function Prototype
+        float tn9Temp(volatile byte tn9Values[]);                       // Function Protoype
 #endif
 
 
@@ -119,9 +119,7 @@ boolean tn9_ambflag = false;				// TN9 flag to indicate ambient temp reading mad
 
 
 #if HUMIDITY
-	unsigned int hih_raw = 0;				// HIH4030 Bit Value
-	float hih_hum = 0.0;                    // HIH4030 Humidity
-	float hih_tchum = 0.0;                  // HIH4030 Temperature Corrected Humidity
+	float sht_hum = 0.0;
 #endif
 
 
@@ -190,14 +188,11 @@ void setup(){
 	digitalWrite(SS,HIGH);
 
 	#if TEMPERATURE
-		dstemp.begin();							// Begin dallas temp sensor
-		dstemp.getAddress(dsaddress, 0);		// Get dallas temp sensor address
-		dstemp.setResolution(dsaddress, 12);	// Set dallas temp sensor resolution
-		logfile.print(",Dallas Amb");
+		logfile.print(",SHT Amb");
 	#endif
 	
 	#if HUMIDITY
-		logfile.print(",Rel Hum,Temp Corrected Rel Hum");
+		logfile.print(",Rel Hum");
 	#endif
 	
 	#if PRESSURE   
@@ -300,20 +295,15 @@ void loop(){
 		logfile.print(now.second(), DEC);
 	
 		#if TEMPERATURE
-			dstemp.requestTemperatures();			                // Send command to get dallas temp sensor values
-			ds_temp = dstemp.getTempC(dsaddress);	                // Read Temperature
+			sht_temp = sht1x.readTemperatureC();					// Get temperature from SHT15
 			logfile.print(",");										// Write Temperature to file
-			logfile.print(ds_temp,4);
+			logfile.print(sht_temp,4);
 		#endif
 	
 		#if HUMIDITY					
-			hih_raw = ads7841(hih_code);							// Get Humidity from ADS7841 
-			hih_hum = (float)hih_raw/25.3952 - 25.8065;				// Calculate humidity
-			hih_tchum = hih_hum/(1.0546 - 0.00216*ds_temp);			// Account for temperature
+			sht_hum = sht1x.readHumidity();							// Get humidity from SHT15
 			logfile.print(",");										// Write Humidity to file
-			logfile.print(hih_hum);
-			logfile.print(",");
-			logfile.print(hih_tchum);
+			logfile.print(sht_hum);
 		#endif
 	
 		#if PRESSURE
@@ -409,7 +399,7 @@ void loop(){
 		if(now.hour() == 0 && now.minute() == 0 && time_dif >= 600000){   // If new day has started and sketch started before 23:50...
 			time_old = millis();                                  	   // Reset timers
 			time_dif = 0;     
-			char filename[] = "LOG_A_00.CSV";
+			char filename[] = "LOG_T_00.CSV";
 			for (uint8_t i = 0; i < 100; i++) {            // Indexes to next number up, depends on date
 	    		filename[6] = i/10 + '0';                  // !! Will stop at 99 !!	
 	    		filename[7] = i%10 + '0';	
@@ -425,10 +415,10 @@ void loop(){
 
 			logfile.print("Millis,Month,Day,Year,Hour,Minute,Second");	// The following logfile.print() functions collectively print the header
 			#if TEMPERATURE
-				logfile.print(",Dallas Amb");
+				logfile.print(",SHT Amb");
 			#endif		
 			#if HUMIDITY
-				logfile.print(",Rel Hum,Temp Corrected Rel Hum");
+				logfile.print(",Rel Hum");
 			#endif
 			#if PRESSURE
 				logfile.print(",Pressure,BMP Amb");

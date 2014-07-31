@@ -2,7 +2,7 @@
 
 double moisture = 0.0;        // Soil Moisture
 double temperature = 0.0;     // Soil Temperature
-const int powerPin = 3;       // Sensor Power
+const int powerPin = 7;       // Sensor Power
 
 void setup(){
   Serial.begin(1200);                              // Communicates @ 1200 baud
@@ -26,10 +26,10 @@ void loop(){
   }
 
   digitalWrite(powerPin,LOW);                     // Reset sensor
-  delay(50);                                      // Make sure sensor is reset properly
+  delay(500);                                      // Make sure sensor is reset properly
   if(Serial3.available() == 0){                   // If everything read in
     ftmParse(input,moisture,temperature);         // Parse input string
-    Serial.println(input);                        // Print raw input, moisture, temperature
+    //Serial.println(input);                        // Print raw input, moisture, temperature
     Serial.print(moisture,5);                     
     Serial.print(",");
     Serial.println(temperature,5);

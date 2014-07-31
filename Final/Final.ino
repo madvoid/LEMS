@@ -24,11 +24,12 @@
 // Replace temp component in line 320 with desired temp value (DS18B20 Recommended)
 #define PRESSURE 1
 #define TEMPERATURE 1  						// If temperature is included, so is humidity.  Make sure both are set to 1
-#define UPPERSOIL 1                         // Serial3
-#define LOWERSOIL 1                         // Serial2
+#define UPPERSOIL 0                         // Serial3
+#define LOWERSOIL 0                         // Serial2
 #define INFRARED 1			
 #define HUMIDITY 1
-#define SUNLIGHT 1		// !!! REMEMBER TO INCLUDE CORRECT CALIBRATION CONSTANT AND RESISTOR VALUE (Line 36-37) !!!
+#define SUNLIGHT 0		// !!! REMEMBER TO INCLUDE CORRECT CALIBRATION CONSTANT AND RESISTOR VALUE (Line 36-37) !!!
+#define WIND 1
 
 #if SUNLIGHT
 	unsigned int li_val = 0;			    // Word to hold 12 bit sunlight values
@@ -50,7 +51,7 @@ const int red_led = 8;						// Datalogger red LED
 unsigned long time_old = 0;		 			// Variables used for timing controls
 unsigned long time_dif = 0;
 void error(char *str);                              // Error function prototype
-char filename[] = "LOG_T_00.CSV";		    // !!! CHANGE IDENTIFICATION CODE FOR ALL CODES AND BELOW !!! 
+char filename[] = "LOG_A_00.CSV";		    // !!! CHANGE IDENTIFICATION CODE FOR ALL CODES AND BELOW !!! 
 
 
 // ADS7841 Control Codes
@@ -82,15 +83,15 @@ int ftm_i = 0;					            // 5TM index counter
 
 
 #if UPPERSOIL
-	const int ftm_powerU = 7;	          	// Upper 5TM sensor power pin (White Wire)
-	// Upper 5TM corresponds to Serial3 (Red Wire)
+	const int ftm_powerU = 7;	          	// Upper 5TM sensor power pin 
+	// Upper 5TM corresponds to Serial3 
 	double ftm_moisU = 0.0;     			// Upper 5TM moisture
 	double ftm_tempU = 0.0;     			// Upper 5TM temp
 #endif
 
 
 #if LOWERSOIL
-	const int ftm_powerL = 6;	          	// Lower 5TM sensor power pin (White Wire)
+	const int ftm_powerL = 6;	          	// Lower 5TM sensor power pin 
 	// Lower 5TM corresponds to Serial2
 	double ftm_moisL = 0.0;  				// Lower 5TM moisture
 	double ftm_tempL = 0.0;     			// Lower 5TM temp
@@ -120,6 +121,14 @@ boolean tn9_ambflag = false;				// TN9 flag to indicate ambient temp reading mad
 
 #if HUMIDITY
 	float sht_hum = 0.0;
+#endif
+
+
+#if WIND
+        const int windDirPin = A0;
+        unsigned long startTime;
+        volatile unsigned long windCount;
+        void counter();
 #endif
 
 
@@ -227,6 +236,11 @@ void setup(){
 	#if SUNLIGHT
 		logfile.print(",Sunlight");
 	#endif
+
+        #if WIND
+                pinMode(2, INPUT_PULLUP);
+                logfile.print(",WindDir,WindSpd");
+        #endif
 	
 	logfile.println();  
 	logfile.flush();  
@@ -388,7 +402,19 @@ void loop(){
 			logfile.print(",");										// Write sunlight to file
 			logfile.print(sunlight);
 		#endif
-		
+
+                #if WIND
+                        logfile.print(",");
+                        logfile.print(analogRead(windDirPin));
+                        startTime = millis();
+                        attachInterrupt(0, counter, RISING);
+                        while(millis() - startTime < 5000){
+                        }
+                        detachInterrupt(0);
+                        logfile.print(",");
+                        logfile.print(windCount);
+		#endif
+
 		logfile.println();
 		logfile.flush();											// Save file !! NECESSARY !!
 		digitalWrite(green_led, HIGH);								// Write confirmation LED flash
@@ -399,7 +425,7 @@ void loop(){
 		if(now.hour() == 0 && now.minute() == 0 && time_dif >= 600000){   // If new day has started and sketch started before 23:50...
 			time_old = millis();                                  	   // Reset timers
 			time_dif = 0;     
-			char filename[] = "LOG_T_00.CSV";
+			char filename[] = "LOG_A_00.CSV";
 			for (uint8_t i = 0; i < 100; i++) {            // Indexes to next number up, depends on date
 	    		filename[6] = i/10 + '0';                  // !! Will stop at 99 !!	
 	    		filename[7] = i%10 + '0';	
@@ -435,10 +461,13 @@ void loop(){
 			#if SUNLIGHT
 				logfile.print(",Sunlight");
 			#endif
+                        #if WIND
+                                logfile.print(",WindDir,WindSpd");
+                        #endif
 			logfile.println();
 			logfile.flush();
 		}
-		delay(7500);												// Wait for next reading
+		delay(2500);												// Wait for next reading
 		
 		#if LOWERSOIL
 			ftm_moisL = ftm_tempL = 0.0; 							// Reset lower 5TM values
@@ -446,7 +475,11 @@ void loop(){
 		
 		#if UPPERSOIL
 			ftm_moisU = ftm_tempU = 0.0;							// Reset upper 5TM values
-		#endif    
+		#endif
+
+                #if WIND
+                        windCount = 0;
+                #endif
 		
 		#if INFRARED    
 			tn9_irflag = false;										// Reset TN9 flags...
@@ -560,7 +593,11 @@ unsigned int ads7841(const byte control){    				// Function to read ADS7841
 	return bitnum;                             				// Return
 }
 
-
+#if WIND
+void counter(){
+        windCount++;  // Increment anemometer count
+}
+#endif
 
 
 

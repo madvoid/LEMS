@@ -24,8 +24,8 @@
 // Replace temp component in line 320 with desired temp value (DS18B20 Recommended)
 #define PRESSURE 1
 #define TEMPERATURE 1  						// If temperature is included, so is humidity.  Make sure both are set to 1
-#define UPPERSOIL 0                         // Serial3
-#define LOWERSOIL 0                         // Serial2
+#define UPPERSOIL 1                         // Serial3
+#define LOWERSOIL 1                         // Serial2
 #define INFRARED 1			
 #define HUMIDITY 1
 #define SUNLIGHT 0		// !!! REMEMBER TO INCLUDE CORRECT CALIBRATION CONSTANT AND RESISTOR VALUE (Line 36-37) !!!
@@ -79,6 +79,7 @@ const byte ch3_code = 0b11100100;     		// ADC channel 3 - Currently unused
 
 
 int ftm_i = 0;					            // 5TM index counter
+void ftmParse(char input[], double &mois, double &temp);    // Initialize ftmParse function
 // The above line is initialized only once to avoid double initialization    	                                    	
 
 

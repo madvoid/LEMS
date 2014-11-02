@@ -1,0 +1,62 @@
+LEMS Code,Resistor Value,Licor Code,Licor CalConst
+A,44.3k,
+B,44.3k,
+C,44.3k,
+D,44.3k,
+E,44.3k,
+F,44.5k,
+G,44.4k,
+H,44.3k,
+I,44.3k,
+J,44.3k,
+K,44.2k,PY80039, (93.71 uA) / (1000 Wm^-2)
+L,44.3k,PY80040, (99.26 uA) / (1000 Wm^-2)
+M,44.3k,PY80041, (102.44 uA) / (1000 Wm^-2)
+N,44.3k,PY80042, (86.06 uA) / (1000 Wm^-2)
+O,44.3k,PY80043, (92.54 uA) / (1000 Wm^-2)
+P,44.3k,PY80044, (87.99 uA) / (1000 Wm^-2)
+Q,44.3k,PY80045, (93.40 uA) / (1000 Wm^-2)
+R,44.3k,PY80046, (90.07 uA) / (1000 Wm^-2)
+S,44.4k,PY75566, (102.25 uA) / (1000 Wm^-2)
+T,44.3k,PY75567, (91.96 uA) / (1000 Wm^-2)
+
+!! For Materhorn 2 (may), Licor K went to LEMS T - 44.3K combined with 93.71 uA/1000W/m^2 !!!
+
+
+Connectors/Color coding
+Look at connector end, pin with dot next to it is pin 1, counterclockwise to ascend
+
+Licor: Use gray 3-wire as interface to connector 
+	(Licor Red) -> (Gray Red) -> (Pin 1) -> Panel -> White -> Li- on Arduino
+	(Licor Shield) -> (Gray White) -> (Pin 2) -> Panel -> Red -> Li+ on Arduino
+
+Solar Panel: Use gray 3-wire as interface to connector
+	(Solar Red) -> (Gray Red) -> (Pin 1) -> Panel -> Red -> SOLAR+ on Arduino
+	(Solar Shield) -> (Gray White) -> (Pin 2) ->  Panel -> White -> SOLAR- on Arduino
+
+Decagon: NO gray 3-wire as interface to connector
+	(Decagon White) -> (Pin 1) -> Panel -> Red -> Pin 6 or 7 on Arduino
+        (Decagon Shield -> (Pin 2) -> Panel -> White -> GND on Arduino 
+	(Decagon Red) -> (Pin 3) -> Panel -> Green -> RX2 or RX3 on Arduino
+
+
+5TM: All gray wire
+	(TN9 Clock) -> (Gray Blue) -> (Pin 1) -> Panel -> White -> CLK on Arduino
+	(TN9 Action) -> (Gray Yellow) -> (Pin 2) -> Panel -> Yellow -> ACT on Arduino
+	(TN9 Power) -> (Gray Red) -> (Pin 3) -> Panel -> Red -> 5V on Arduino
+	(TN9 Data) -> (Gray Green) -> (Pin 4) -> Panel -> Green -> DAT on Arduino
+	(TN9 Ground) -> (Gray Shield) -> (Pin 5) -> Panel -> Black -> GND on Arduino
+
+SHT15: All gray wire
+	(SHT Power) -> (Gray Red) -> 5V on Arduino
+	(SHT Data) -> (Gray Green) -> TX1 on Arduino
+	(SHT Clock) -> (Gray Blue) -> RX1 on Arduino
+	(SHT Ground) -> (Gray Yellow) -> GND on Arduino
+	Cut unshielded on gray wire
+
+Davis: No Intermediate wire
+	Yellow: 5V (Screw terminal)
+	Red: Ground (Screw terminal)
+	Green: Analog pin 0 (left side of LEMS when upright)
+	Black: Digital Pin 2 (right side of LEMS when upright)
+	

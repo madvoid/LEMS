@@ -426,52 +426,52 @@ void loop(){
 		delay(150);
 		digitalWrite(green_led, LOW);
 	
-		time_dif = millis()-time_old;
-		if(now.hour() == 0 && now.minute() == 0 && time_dif >= 600000){   // If new day has started and sketch started before 23:50...
-			time_old = millis();                                  	   // Reset timers
-			time_dif = 0;     
-			char filename[] = "LOG_C_00.CSV";
-			for (uint8_t i = 0; i < 100; i++) {            // Indexes to next number up, depends on date
-	    		filename[6] = i/10 + '0';                  // !! Will stop at 99 !!	
-	    		filename[7] = i%10 + '0';	
-	    		if (! SD.exists(filename)) {	
-	    			logfile = SD.open(filename, FILE_WRITE); 	
-	     			break;  	
-	    		}	
-			}
-		  	if (!logfile){											// File successfully opened check
-				digitalWrite(red_led, HIGH);	
-				error("Couldnt create file");               
-			}
-
-			logfile.print("Millis,Month,Day,Year,Hour,Minute,Second");	// The following logfile.print() functions collectively print the header
-			#if TEMPERATURE
-				logfile.print(",SHT Amb");
-			#endif		
-			#if HUMIDITY
-				logfile.print(",Rel Hum");
-			#endif
-			#if PRESSURE
-				logfile.print(",Pressure,BMP Amb");
-			#endif
-			#if INFRARED
-				logfile.print(",IR,TN9 Amb");
-			#endif
-			#if LOWERSOIL
-				logfile.print(",Soil Lower Temp,Soil Lower Mois");
-			#endif
-			#if UPPERSOIL
-				logfile.print(",Soil Upper Temp,Soil Upper Mois");
-			#endif
-			#if SUNLIGHT
-				logfile.print(",Sunlight");
-			#endif
-                        #if WIND
-                                logfile.print(",WindDir,WindSpd");
-                        #endif
-			logfile.println();
-			logfile.flush();
-		}
+//		time_dif = millis()-time_old;
+//		if(now.hour() == 0 && now.minute() == 0 && time_dif >= 600000){   // If new day has started and sketch started before 23:50...
+//			time_old = millis();                                  	   // Reset timers
+//			time_dif = 0;     
+//			char filename[] = "LOG_C_00.CSV";
+//			for (uint8_t i = 0; i < 100; i++) {            // Indexes to next number up, depends on date
+//	    		filename[6] = i/10 + '0';                  // !! Will stop at 99 !!	
+//	    		filename[7] = i%10 + '0';	
+//	    		if (! SD.exists(filename)) {	
+//	    			logfile = SD.open(filename, FILE_WRITE); 	
+//	     			break;  	
+//	    		}	
+//			}
+//		  	if (!logfile){											// File successfully opened check
+//				digitalWrite(red_led, HIGH);	
+//				error("Couldnt create file");               
+//			}
+//
+//			logfile.print("Millis,Month,Day,Year,Hour,Minute,Second");	// The following logfile.print() functions collectively print the header
+//			#if TEMPERATURE
+//				logfile.print(",SHT Amb");
+//			#endif		
+//			#if HUMIDITY
+//				logfile.print(",Rel Hum");
+//			#endif
+//			#if PRESSURE
+//				logfile.print(",Pressure,BMP Amb");
+//			#endif
+//			#if INFRARED
+//				logfile.print(",IR,TN9 Amb");
+//			#endif
+//			#if LOWERSOIL
+//				logfile.print(",Soil Lower Temp,Soil Lower Mois");
+//			#endif
+//			#if UPPERSOIL
+//				logfile.print(",Soil Upper Temp,Soil Upper Mois");
+//			#endif
+//			#if SUNLIGHT
+//				logfile.print(",Sunlight");
+//			#endif
+//                        #if WIND
+//                                logfile.print(",WindDir,WindSpd");
+//                        #endif
+//			logfile.println();
+//			logfile.flush();
+//		}
 		delay(2500);												// Wait for next reading
 		
 		#if LOWERSOIL

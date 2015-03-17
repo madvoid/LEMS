@@ -26,10 +26,47 @@
 #define TEMPERATURE 1  						// If temperature is included, so is humidity.  Make sure both are set to 1
 #define UPPERSOIL 0                         // Serial3
 #define LOWERSOIL 0                         // Serial2
-#define INFRARED 1			
+#define INFRARED 0			
 #define HUMIDITY 1
-#define SUNLIGHT 0		// !!! REMEMBER TO INCLUDE CORRECT CALIBRATION CONSTANT AND RESISTOR VALUE (Line 36-37) !!!
+#define SUNLIGHT 1		// !!! REMEMBER TO INCLUDE CORRECT CALIBRATION CONSTANT AND RESISTOR VALUE (Line 36-37) !!!
 #define WIND 1
+#define WIFI 1
+
+#define NO_PORTB_PINCHANGES //PortB pins will not be used for pinchange interrupts (https://code.google.com/p/arduino-pinchangeint/wiki/Usage)
+
+#if WIFI
+
+       #include <Adafruit_CC3000.h>
+       #include <ccspi.h> 
+       #include <string.h>
+       #include <Phant.h> 
+       // These are the interrupt and control pins
+       #define ADAFRUIT_CC3000_IRQ   2  // MUST be an interrupt pin!
+       // These can be any two pins
+       #define ADAFRUIT_CC3000_VBAT  7
+       #define ADAFRUIT_CC3000_CS    11
+       // Use hardware SPI for the remaining pins
+       // On an UNO, SCK = 13, MISO = 12, and MOSI = 11
+       Adafruit_CC3000 cc3000 = Adafruit_CC3000(ADAFRUIT_CC3000_CS, ADAFRUIT_CC3000_IRQ, ADAFRUIT_CC3000_VBAT, SPI_CLOCK_DIVIDER); // you can change this clock speed but DI
+
+       #define WLAN_SSID       "MyNetwork"        // cannot be longer than 32 characters!
+       #define WLAN_PASS       "MyPassword"
+       // Security can be WLAN_SEC_UNSEC, WLAN_SEC_WEP, WLAN_SEC_WPA or WLAN_SEC_WPA2
+       #define WLAN_SECURITY   WLAN_SEC_WPA2
+       
+       // http://data.sparkfun.com/streams/VGb2Y1jD4VIxjX3x196z
+       // hostname, public key, private key
+       #define server "data.sparkfun.com"
+       #define publicKey "7JjnVXdLdyi4KrR8MoQ7"
+       #define privateKey "mzlxKwRJRAseAxMdwV4J"
+       Phant phant(server,publicKey,privateKey); //This nicely sets up our POST url to send with CC3000
+       const byte NUM_FIELDS = 13; 
+       const String fieldNames[NUM_FIELDS] = {"shtamb", "relhum", "pressure", "bmpamp", "ir", "amb", "lowertemp", "lowermois", "uppertemp", "uppermois", "sunlight", "winddir", "windspeed"}; 
+       String fieldValues [NUM_FIELDS];
+       int recc_AP= 0; 
+
+#endif
+
 
 #if SUNLIGHT
 	unsigned int li_val = 0;			    // Word to hold 12 bit sunlight values
@@ -43,6 +80,7 @@
 #include <Wire.h>							// I2C library
 #include <RTClib.h>							// Real Time Clock (RTC) library
 #include <SPI.h>							// SPI library
+#include <PinChangeInt.h>                                               // Added for A8 pinchange interrupt for anemometer!
 RTC_DS1307 RTC;								// Initialize RTC
 File logfile;								// Initialize class called logfile
 const int chipSelect = 10;					// Pin needed for data logger
@@ -239,7 +277,8 @@ void setup(){
 	#endif
 
         #if WIND
-                pinMode(2, INPUT_PULLUP);
+                pinMode(A8, INPUT_PULLUP); //Analog pin 8 on Port K will be utilitized as a pinchange interupt, changed from pinMode(2, INPUT_PULLUP); 
+                digitalWrite(A8, HIGH); //Although the INPUT_PULLUP takes care of the pull up resistor, this was kept in Arduino docs regardless...idk
                 logfile.print(",WindDir,WindSpd");
         #endif
 	
@@ -255,6 +294,32 @@ void setup(){
 		attachInterrupt(1,tn9Data,FALLING);  		                // Interrupt
 		digitalWrite(tn9_action,LOW);				        // Make sensor start sending data
 	#endif
+
+        #if WIFI
+        Serial.println(F("Starting WIFI"));
+        if (!cc3000.begin())
+        {
+          digitalWrite(red_led, HIGH);
+          digitalWrite(green_led, HIGH);
+          Serial.println(F("Unable to initialise the CC3000! Check your wiring?"));
+          error("WIFI failed");
+        }
+        Serial.println("connecting to access point!"); 
+        if (!cc3000.connectToAP(WLAN_SSID, WLAN_PASS, WLAN_SECURITY)) {
+          digitalWrite(red_led, HIGH);
+          digitalWrite(green_led, HIGH);
+          Serial.println(F("Connection to AP failed!"));
+          error("WIFI AP failed");
+        }
+        
+        while (!cc3000.checkDHCP())
+        {
+          delay(100);
+        }  
+        
+          Serial.println("GOT IT! :D ");
+          
+        #endif
 } //setup()
 
 
@@ -308,17 +373,21 @@ void loop(){
 		logfile.print(now.minute(), DEC);
 		logfile.print(",");
 		logfile.print(now.second(), DEC);
-	
+              
+              
 		#if TEMPERATURE
 			sht_temp = sht1x.readTemperatureC();					// Get temperature from SHT15
 			logfile.print(",");										// Write Temperature to file
 			logfile.print(sht_temp,4);
+
+
 		#endif
 	
 		#if HUMIDITY					
 			sht_hum = sht1x.readHumidity();							// Get humidity from SHT15
 			logfile.print(",");										// Write Humidity to file
 			logfile.print(sht_hum);
+                  
 		#endif
 	
 		#if PRESSURE
@@ -328,22 +397,36 @@ void loop(){
 			logfile.print(bmp_pres);
 			logfile.print(",");
 			logfile.print(bmp_temp);
+
+                    
 		#endif
 	
 		#if INFRARED												// Write Infrared temp to file
 			logfile.print(",");										
 			if (tn9_ir > -273.0){
 				logfile.print(tn9_ir);
+
+                    
+
 			}
 			else{
 				logfile.print("NaN");
+
+                   
+
 			}
 			logfile.print(",");
 			if (tn9_amb > -273.0){
 				logfile.print(tn9_amb);
+
+                    
+
 			}
 			else{
 				logfile.print("NaN");
+
+
+                    
 			}
 		#endif    
 		
@@ -363,12 +446,15 @@ void loop(){
 				logfile.print(ftm_tempL,2);
 				logfile.print(",");
 				logfile.print(ftm_moisL,5);
+
+                    
 			}
 			else{
 				logfile.print(",");
 				logfile.print("NaN");
 				logfile.print(",");
 				logfile.print("NaN");
+                      
 			}
 		#endif
 		
@@ -388,12 +474,14 @@ void loop(){
 				logfile.print(ftm_tempU,2);
 				logfile.print(",");
 				logfile.print(ftm_moisU,5);
+                    
 			}
 			else{
 				logfile.print(",");
 				logfile.print("NaN");
 				logfile.print(",");
 				logfile.print("NaN");
+                    
 			}
 		#endif
 		
@@ -402,6 +490,9 @@ void loop(){
 			sunlight = (4.5/4095)*(1/cal_resistor)*(1/cal_const)*li_val;  // Convert to W/m^2
 			logfile.print(",");										// Write sunlight to file
 			logfile.print(sunlight);
+
+                   
+
 		#endif
 
                 #if WIND
@@ -409,19 +500,166 @@ void loop(){
                         float wDir = (float)analogRead(windDirPin);
                         wDir = (wDir) * (360.0) / (1024.0);  // Map from 0-1024 to 0-360
                         logfile.print(wDir);
+                        
+                    
+                        
                         startTime = millis();
-                        attachInterrupt(0, counter, RISING);
+                        attachPinChangeInterrupt(A8,counter,RISING);  //using the pinchange interrupt func, previously attachInterrupt(0, counter, RISING);
                         while(millis() - startTime < 5000){
                         }
-                        detachInterrupt(0);
+                        detachPinChangeInterrupt(A8); //using the pinchange interrupt func, previously detachInterrupt(0);
                         float wSpd = windCount*(2.25/5.0);  // Convert to mph
                         wSpd = 0.447*wSpd;  // Convert to m/s
-                        logfile.print(",");
+                        logfile.print(","); 
                         logfile.print(wSpd);
+                     
 		#endif
 
 		logfile.println();
-		logfile.flush();											// Save file !! NECESSARY !!
+		logfile.flush();
+
+                #if WIFI
+                    if (recc_AP == 30){
+                      
+                      cc3000.disconnect(); 
+                      delay(4000); 
+                      if (!cc3000.begin())
+                      {
+                        digitalWrite(red_led, HIGH);
+                        digitalWrite(green_led, HIGH);
+                        Serial.println(F("Unable to initialise the CC3000! Check your wiring?"));
+                        error("WIFI failed");
+                      }
+                      Serial.println("connecting to access point!"); 
+                      if (!cc3000.connectToAP(WLAN_SSID, WLAN_PASS, WLAN_SECURITY)) {
+                        digitalWrite(red_led, HIGH);
+                        digitalWrite(green_led, HIGH);
+                        Serial.println(F("Connection to AP failed!"));
+                        error("WIFI AP failed");
+                      }
+                      
+                      while (!cc3000.checkDHCP())
+                      {
+                        delay(100);
+                      }  
+                      
+                        Serial.println("GOT IT! :D ");
+                        delay(1000); 
+                        recc_AP = -1; 
+                    }
+                      
+                      
+                    #if TEMPERATURE
+                
+                        fieldValues[0] = String(sht_temp); 
+                        
+                    #else
+                        fieldValues[0] = "NA"; 
+                    
+                    #endif     
+                
+                    #if HUMIDITY
+                        fieldValues[1] = String(sht_hum);
+                    #else 
+                        fieldValues[1] = "NA"; 
+                    #endif
+                    
+                    #if PRESSURE
+                        fieldValues[2] = String(bmp_pres);  
+                        fieldValues[3] = String(bmp_temp); 
+                    #else
+                        fieldValues[2] = "NA";  
+                        fieldValues[3] = "NA"; 
+                    #endif
+                    
+                    #if INFRARED 
+                        fieldValues[4] = String(tn9_ir);
+                        fieldValues[5] = String(tn9_amb); 
+                    #else
+                        fieldValues[4] = "NA";
+                        fieldValues[5] = "NA";
+                    #endif
+                   
+                   #if LOWERSOIL
+                       fieldValues[6] = String(ftm_tempL); 
+                       fieldValues[7] = String(ftm_moisL);
+                   #else
+                       fieldValues[6] = "NA"; 
+                       fieldValues[7] = "NA";
+                   #endif
+                   
+                   #if UPPERSOIL 
+                       fieldValues[8] = String(ftm_tempU); 
+                       fieldValues[9] = String(ftm_moisU);
+                   #else
+                       fieldValues[8] = "NA"; 
+                       fieldValues[9] = "NA";
+                   #endif
+                   
+                   #if SUNLIGHT
+                       fieldValues[10] = String(sunlight); 
+                   #else
+                       fieldValues[10] = "NA"; 
+                   #endif
+                   
+                   #if WIND
+                       fieldValues[11] = String(wDir);
+                       fieldValues[12] = String(wSpd); 
+                   #else
+                       fieldValues[11] = "NA";
+                       fieldValues[12] = "NA"; 
+                   #endif
+                
+                
+                uint32_t ip = 0; 
+                // Try looking up the website's IP address
+                Serial.print(server); Serial.print(F(" -> "));
+                while (ip == 0) {
+                  if (! cc3000.getHostByName(server, &ip)) {
+                    Serial.println(F("Couldn't resolve!"));
+                  }
+                  delay(500);
+                }
+                cc3000.printIPdotsRev(ip);
+                Serial.println(); 
+                Adafruit_CC3000_Client www = cc3000.connectTCP(ip, 80); 
+                if (www.connected()) {
+                  Serial.println(F("connected to server"));
+                  www.print(F("GET /input/"));
+                  www.print(publicKey);
+                  www.print(F("?private_key="));
+                  www.print(privateKey);
+//                  www.print("&lem=yes");
+//                  www.print("&abc=nono");  
+                  for (int i=0; i<NUM_FIELDS; i++)
+                  {
+                    www.print(F("&"));
+                    www.print(fieldNames[i]);
+                    www.print(F("="));
+                    www.print(fieldValues[i]);
+                  }
+                  www.println(F(" HTTP/1.1"));
+                  www.print(F("Host: "));
+                  www.println(server);
+                  www.println();
+                  Serial.println(F("Posted!")); 
+                } else {
+                  Serial.println(F("Failed connection")); 
+                  return;
+                }
+                
+                /* Read data until either the connection is closed, or the idle timeout is reached. */ 
+                  unsigned long lastRead = millis();
+                  while (www.connected() && (millis() - lastRead < 5000)) {
+                    while (www.available()) {
+                      char c = www.read();
+                      Serial.print(c);
+                      lastRead = millis();
+                    }
+                  }
+                  www.close();
+                #endif
+                											// Save file !! NECESSARY !!
 		digitalWrite(green_led, HIGH);								// Write confirmation LED flash
 		delay(150);
 		digitalWrite(green_led, LOW);
@@ -490,7 +728,11 @@ void loop(){
 			tn9_irflag = false;										// Reset TN9 flags...
 			tn9_ambflag = false;
 			digitalWrite(tn9_action,LOW);							// Make tn9 start sending data if present  
-		#endif    
+		#endif
+
+                #if WIFI
+                    recc_AP++; 
+                #endif
 	}											
 } //loop()
 

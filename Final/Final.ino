@@ -426,6 +426,7 @@ void loop(){
 		delay(150);
 		digitalWrite(green_led, LOW);
 	
+// !! Uncomment following block if you want a new file everyday !!
 //		time_dif = millis()-time_old;
 //		if(now.hour() == 0 && now.minute() == 0 && time_dif >= 600000){   // If new day has started and sketch started before 23:50...
 //			time_old = millis();                                  	   // Reset timers

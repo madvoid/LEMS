@@ -24,16 +24,17 @@
 // Replace temp component in line 320 with desired temp value (DS18B20 Recommended)
 #define PRESSURE 1
 #define TEMPERATURE 1  						// If temperature is included, so is humidity.  Make sure both are set to 1
-#define UPPERSOIL 0                         // Serial3
+#define UPPERSOIL 0                        // Serial3
 #define LOWERSOIL 0                         // Serial2
 #define INFRARED 1			
 #define HUMIDITY 1
-#define SUNLIGHT 0		// !!! REMEMBER TO INCLUDE CORRECT CALIBRATION CONSTANT AND RESISTOR VALUE (Line 36-37) !!!
+#define SUNLIGHT 1		// !!! REMEMBER TO INCLUDE CORRECT CALIBRATION CONSTANT AND RESISTOR VALUE (Line 36-37) !!!
 #define WIND 1
+#define PAR 1
 
 #if SUNLIGHT
 	unsigned int li_val = 0;			    // Word to hold 12 bit sunlight values
-	const float cal_const = 91.96E-6/1000;  // Licor Calibration Constant. Units of (Amps/(W/m^2))
+	const float cal_const = 74.22E-6/1000;  // Licor Calibration Constant. Units of (Amps/(W/m^2))
 	const float cal_resistor = 44300;		// Exact Resistor Value used by Op-Amp
 	float sunlight = 0.0;					// Converted Value
 #endif
@@ -51,7 +52,8 @@ const int red_led = 8;						// Datalogger red LED
 unsigned long time_old = 0;		 			// Variables used for timing controls
 unsigned long time_dif = 0;
 void error(char *str);                              // Error function prototype
-char filename[] = "LOG_C_00.CSV";		    // !!! CHANGE IDENTIFICATION CODE FOR ALL CODES AND BELOW !!! 
+unsigned int ads7841(const byte control);           // ADC function prototype
+char filename[] = "LOG_D_00.CSV";		    // !!! CHANGE IDENTIFICATION CODE FOR ALL CODES AND BELOW !!! 
 
 
 // ADS7841 Control Codes
@@ -128,11 +130,18 @@ boolean tn9_ambflag = false;				// TN9 flag to indicate ambient temp reading mad
 #if WIND
         const int windDirPin = A0;
         unsigned long startTime;
-        volatile unsigned long windCount;
+        volatile unsigned long windCount;    // Used to get counts from wind speed sensor
         void counter();
 #endif
 
 
+#if PAR
+        unsigned int parRead = 0;            // Used to get 12-bit value from ADC
+        const byte par_code = ch1_code;
+        float parVal = 0.0;
+        const float parGain = 11.0;              // Gain from amplifier for PAR sensor
+        const float parConst = 5000.0;           // Convert from PAR voltage output to umol/(m^2s)/V
+#endif
 
 
 
@@ -241,6 +250,10 @@ void setup(){
         #if WIND
                 pinMode(2, INPUT_PULLUP);
                 logfile.print(",WindDir,WindSpd");
+        #endif
+        
+        #if PAR
+                logfile.print(",PAR");
         #endif
 	
 	logfile.println();  
@@ -420,12 +433,21 @@ void loop(){
                         logfile.print(wSpd);
 		#endif
 
+                #if PAR
+                        parRead = ads7841(par_code);
+                        parVal = ((float)parRead*4.5)/(4095.0*parGain) * parConst;
+                        logfile.print(",");
+                        logfile.print(parVal);
+                #endif
+                
+
 		logfile.println();
 		logfile.flush();											// Save file !! NECESSARY !!
 		digitalWrite(green_led, HIGH);								// Write confirmation LED flash
 		delay(150);
 		digitalWrite(green_led, LOW);
 	
+// !! Uncomment following section if you want new file everyday !!
 //		time_dif = millis()-time_old;
 //		if(now.hour() == 0 && now.minute() == 0 && time_dif >= 600000){   // If new day has started and sketch started before 23:50...
 //			time_old = millis();                                  	   // Reset timers
@@ -472,8 +494,9 @@ void loop(){
 //			logfile.println();
 //			logfile.flush();
 //		}
+
 		delay(2500);												// Wait for next reading
-		
+
 		#if LOWERSOIL
 			ftm_moisL = ftm_tempL = 0.0; 							// Reset lower 5TM values
 		#endif    

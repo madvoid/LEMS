@@ -23,17 +23,17 @@
 // !! THE HUMIDITY SENSOR REQUIRES A TEMPERATURE SENSOR FOR TEMPERATURE CORRECTION !!
 // Replace temp component in line 320 with desired temp value (DS18B20 Recommended)
 #define PRESSURE 1
-#define TEMPERATURE 1  						// If temperature is included, so is humidity.  Make sure both are set to 1
+#define TEMPERATURE 0  						// If temperature is included, so is humidity.  Make sure both are set to 1
 #define UPPERSOIL 1                         // Serial3
 #define LOWERSOIL 1                         // Serial2
-#define INFRARED 0		
-#define HUMIDITY 1
+#define INFRARED 0			
+#define HUMIDITY 0
 #define SUNLIGHT 0		// !!! REMEMBER TO INCLUDE CORRECT CALIBRATION CONSTANT AND RESISTOR VALUE (Line 36-37) !!!
-#define WIND 1
+#define WIND 0
 
 #if SUNLIGHT
 	unsigned int li_val = 0;			    // Word to hold 12 bit sunlight values
-	const float cal_const = 91.96E-6/1000;  // Licor Calibration Constant. Units of (Amps/(W/m^2))
+	const float cal_const = 87.99E-6/1000;  // Licor Calibration Constant. Units of (Amps/(W/m^2))
 	const float cal_resistor = 44300;		// Exact Resistor Value used by Op-Amp
 	float sunlight = 0.0;					// Converted Value
 #endif
@@ -52,7 +52,7 @@ const int red_led = 8;						// Datalogger red LED
 unsigned long time_old = 0;		 			// Variables used for timing controls
 unsigned long time_dif = 0;
 void error(char *str);                              // Error function prototype
-char filename[] = "LOG_P_00.CSV";		    // !!! CHANGE IDENTIFICATION CODE FOR ALL CODES AND BELOW !!! 
+char filename[] = "LOG_L_00.CSV";		    // !!! CHANGE IDENTIFICATION CODE FOR ALL CODES AND BELOW !!! 
 
 
 // ADS7841 Control Codes
@@ -474,7 +474,7 @@ void loop(){
 //			logfile.println();
 //			logfile.flush();
 //		}
-		delay(2500);												// Wait for next reading
+		delay(8500);												// Wait for next reading
 		
 		#if LOWERSOIL
 			ftm_moisL = ftm_tempL = 0.0; 							// Reset lower 5TM values

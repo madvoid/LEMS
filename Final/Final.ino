@@ -24,16 +24,16 @@
 // Replace temp component in line 320 with desired temp value (DS18B20 Recommended)
 #define PRESSURE 1
 #define TEMPERATURE 1  						// If temperature is included, so is humidity.  Make sure both are set to 1
-#define UPPERSOIL 1                         // Serial3
-#define LOWERSOIL 1                         // Serial2
-#define INFRARED 0		
+#define UPPERSOIL 0                         // Serial3
+#define LOWERSOIL 0                         // Serial2
+#define INFRARED 1		
 #define HUMIDITY 1
-#define SUNLIGHT 0		// !!! REMEMBER TO INCLUDE CORRECT CALIBRATION CONSTANT AND RESISTOR VALUE (Line 36-37) !!!
+#define SUNLIGHT 1		// !!! REMEMBER TO INCLUDE CORRECT CALIBRATION CONSTANT AND RESISTOR VALUE (Line 36-37) !!!
 #define WIND 1
 
 #if SUNLIGHT
 	unsigned int li_val = 0;			    // Word to hold 12 bit sunlight values
-	const float cal_const = 91.96E-6/1000;  // Licor Calibration Constant. Units of (Amps/(W/m^2))
+	const float cal_const = 93.40E-6/1000;  // Licor Calibration Constant. Units of (Amps/(W/m^2))
 	const float cal_resistor = 44300;		// Exact Resistor Value used by Op-Amp
 	float sunlight = 0.0;					// Converted Value
 #endif
@@ -52,7 +52,7 @@ const int red_led = 8;						// Datalogger red LED
 unsigned long time_old = 0;		 			// Variables used for timing controls
 unsigned long time_dif = 0;
 void error(char *str);                              // Error function prototype
-char filename[] = "LOG_P_00.CSV";		    // !!! CHANGE IDENTIFICATION CODE FOR ALL CODES AND BELOW !!! 
+char filename[] = "LOG_K_00.CSV";		    // !!! CHANGE IDENTIFICATION CODE FOR ALL CODES AND BELOW !!! 
 
 
 // ADS7841 Control Codes
